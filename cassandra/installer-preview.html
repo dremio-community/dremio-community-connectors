@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1e1e1e; display: flex; justify-content: center; align-items: flex-start; padding: 32px; font-family: sans-serif; }
+  .window {
+    width: 780px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  }
+  .titlebar {
+    background: #3a3a3a;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .dot { width: 13px; height: 13px; border-radius: 50%; }
+  .red    { background: #ff5f57; }
+  .yellow { background: #febc2e; }
+  .green  { background: #28c840; }
+  .title { color: #aaa; font-size: 13px; margin-left: 8px; font-family: 'SF Pro Text', sans-serif; }
+  .terminal {
+    background: #1a1a1a;
+    padding: 20px 24px 28px;
+    font-family: 'SF Mono', 'Menlo', 'Monaco', 'Courier New', monospace;
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: #d4d4d4;
+  }
+  .prompt { color: #5af78e; }
+  .cmd    { color: #ffffff; }
+  .cyan   { color: #57c7ff; font-weight: bold; }
+  .green2 { color: #5af78e; }
+  .yellow2{ color: #f3f99d; }
+  .arrow  { color: #57c7ff; }
+  .dim    { color: #888; }
+  .bold   { font-weight: bold; }
+  .input  { color: #ff6ac1; }
+  .sep    { color: #57c7ff; font-weight: bold; }
+  br { display: block; content: ""; }
+</style>
+</head>
+<body>
+<div class="window">
+  <div class="titlebar">
+    <div class="dot red"></div>
+    <div class="dot yellow"></div>
+    <div class="dot green"></div>
+    <span class="title">bash — install.sh</span>
+  </div>
+  <div class="terminal">
+
+<div><span class="prompt">mark@mac</span> <span class="dim">dremio-cassandra-connector</span> <span class="prompt">%</span> <span class="cmd">./install.sh</span></div>
+<div>&nbsp;</div>
+
+<div><span class="sep">════════════════════════════════════════════════</span></div>
+<div><span class="sep bold">   Dremio Cassandra Connector Installer v3</span></div>
+<div><span class="sep">════════════════════════════════════════════════</span></div>
+<div>&nbsp;</div>
+<div><span class="bold">Select deployment mode:</span></div>
+<div>  1) Docker container  <span class="dim">(most common for dev/test)</span></div>
+<div>  2) Local / bare-metal Dremio installation</div>
+<div>  3) Kubernetes pod</div>
+<div>&nbsp;</div>
+<div><span class="arrow">▶</span> <span class="input">1</span></div>
+<div>&nbsp;</div>
+<div><span class="bold">Docker container name:</span> <span class="input">try-dremio</span></div>
+<div>&nbsp;</div>
+
+<div><span class="bold">How would you like to install the plugin JAR?</span></div>
+<div>&nbsp;</div>
+<div>  1) Use pre-built JAR  — fast, no Maven required</div>
+<div>         Included: <span class="dim">jars/dremio-cassandra-connector-1.0.0-SNAPSHOT-plugin.jar</span></div>
+<div>         <span class="green2">✓ JAR found — 12M</span></div>
+<div>&nbsp;</div>
+<div>  2) Build from source  — compiles inside the target environment</div>
+<div>         Requires: Maven <span class="dim">(installed automatically in Docker/k8s)</span></div>
+<div>&nbsp;</div>
+<div><span class="arrow">▶</span> <span class="input">1</span></div>
+<div>&nbsp;</div>
+
+<div><span class="bold">Installation plan:</span></div>
+<div>    <span class="arrow">→</span> Mode       : docker</div>
+<div>    <span class="arrow">→</span> Target     : try-dremio</div>
+<div>    <span class="arrow">→</span> JAR source : prebuilt</div>
+<div>&nbsp;</div>
+
+<div><span class="bold">[1]</span> Verifying container 'try-dremio' is running...</div>
+<div>    <span class="green2">✓</span> Container is running</div>
+<div><span class="bold">[2]</span> Copying pre-built JAR into container...</div>
+<div>    <span class="green2">✓</span> JAR copied</div>
+<div><span class="bold">[3]</span> Deploying JAR to jars/3rdparty...</div>
+<div>    <span class="green2">✓</span> Deployed to /opt/dremio/jars/3rdparty/dremio-cassandra-connector-1.0.0-SNAPSHOT-plugin.jar</div>
+<div><span class="bold">[4]</span> Restarting Dremio container...</div>
+<div>    Waiting for Dremio to start<span class="dim">...</span></div>
+<div>    <span class="green2">✓</span> Dremio is up <span class="dim">(took ~10s)</span></div>
+<div>&nbsp;</div>
+
+<div><span class="sep" style="color:#5af78e">════════════════════════════════════════════════</span></div>
+<div><span class="green2 bold">   Installation complete!</span></div>
+<div><span class="sep" style="color:#5af78e">════════════════════════════════════════════════</span></div>
+<div>&nbsp;</div>
+<div><span class="bold">Next steps:</span></div>
+<div>  1. Open <span class="cyan">http://localhost:9047</span>  <span class="dim">(or your Dremio URL)</span></div>
+<div>  2. Go to <span class="bold">Sources → Add Source → Apache Cassandra</span></div>
+<div>  3. Enter your host, port (9042), datacenter, and credentials</div>
+<div>  4. Click Save — your keyspaces and tables will appear in the catalog</div>
+<div>&nbsp;</div>
+<div><span class="bold">Example query:</span></div>
+<div>  <span class="yellow2">SELECT</span> * <span class="yellow2">FROM</span> cassandra_source.my_keyspace.my_table <span class="yellow2">LIMIT</span> 10;</div>
+<div>&nbsp;</div>
+<div><span class="bold">Predicate pushdown:</span></div>
+<div>  <span class="yellow2">SELECT</span> * <span class="yellow2">FROM</span> cassandra_source.ks.tbl <span class="yellow2">WHERE</span> partition_key = <span class="green2">'value'</span>;</div>
+<div>  <span class="dim">-- Filters on partition key columns are pushed to CQL automatically.</span></div>
+<div>&nbsp;</div>
+<div><span class="prompt">mark@mac</span> <span class="dim">dremio-cassandra-connector</span> <span class="prompt">%</span> <span class="dim">█</span></div>
+
+  </div>
+</div>
+</body>
+</html>

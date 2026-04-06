@@ -1,0 +1,65 @@
+<svg id="sources/APACHE_CASSANDRA" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="cIris" cx="50%" cy="45%" r="55%">
+      <stop offset="0%" stop-color="#d0eef8"/>
+      <stop offset="50%" stop-color="#6fc8e8"/>
+      <stop offset="100%" stop-color="#2a8ab0"/>
+    </radialGradient>
+    <radialGradient id="cPupil" cx="50%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#2a6080"/>
+      <stop offset="100%" stop-color="#0a2e40"/>
+    </radialGradient>
+    <clipPath id="cEye">
+      <path d="M2,20 Q11,9 20,9 Q29,9 38,20 Q29,31 20,31 Q11,31 2,20 Z"/>
+    </clipPath>
+  </defs>
+
+  <!-- Upper eyelashes -->
+  <g stroke="#222" stroke-width="1" stroke-linecap="round">
+    <line x1="20" y1="8"  x2="19" y2="3"/>
+    <line x1="15" y1="9"  x2="13" y2="4"/>
+    <line x1="11" y1="12" x2="8"  y2="7"/>
+    <line x1="25" y1="9"  x2="27" y2="4"/>
+    <line x1="29" y1="12" x2="32" y2="7"/>
+  </g>
+
+  <!-- Lower eyelashes -->
+  <g stroke="#222" stroke-width="0.8" stroke-linecap="round">
+    <line x1="20" y1="31" x2="20" y2="35"/>
+    <line x1="14" y1="30" x2="13" y2="34"/>
+    <line x1="26" y1="30" x2="27" y2="34"/>
+  </g>
+
+  <!-- Eye white -->
+  <path d="M2,20 Q11,9 20,9 Q29,9 38,20 Q29,31 20,31 Q11,31 2,20 Z"
+        fill="white" stroke="#222" stroke-width="1"/>
+
+  <!-- Iris -->
+  <circle cx="20" cy="20" r="9" fill="url(#cIris)" clip-path="url(#cEye)"/>
+
+  <!-- Starburst spokes (Cassandra distributed-ring motif) -->
+  <g clip-path="url(#cEye)" stroke="#1a6a8a" stroke-width="0.9" stroke-linecap="round">
+    <line x1="20" y1="13" x2="20" y2="27"/>
+    <line x1="13" y1="20" x2="27" y2="20"/>
+    <line x1="15" y1="15" x2="25" y2="25"/>
+    <line x1="25" y1="15" x2="15" y2="25"/>
+  </g>
+
+  <!-- Node dots -->
+  <g clip-path="url(#cEye)" fill="#0a2e40">
+    <circle cx="20" cy="13.5" r="1"/>
+    <circle cx="20" cy="26.5" r="1"/>
+    <circle cx="13.5" cy="20" r="1"/>
+    <circle cx="26.5" cy="20" r="1"/>
+    <circle cx="15.5" cy="15.5" r="0.9"/>
+    <circle cx="24.5" cy="24.5" r="0.9"/>
+    <circle cx="24.5" cy="15.5" r="0.9"/>
+    <circle cx="15.5" cy="24.5" r="0.9"/>
+  </g>
+
+  <!-- Pupil -->
+  <circle cx="20" cy="20" r="3.8" fill="url(#cPupil)" clip-path="url(#cEye)"/>
+
+  <!-- Pupil highlight -->
+  <ellipse cx="18.8" cy="18.8" rx="1.1" ry="0.7" fill="white" opacity="0.75" clip-path="url(#cEye)"/>
+</svg>

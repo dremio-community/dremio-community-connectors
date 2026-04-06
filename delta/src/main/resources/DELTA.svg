@@ -1,0 +1,24 @@
+<svg id="sources/DELTA" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Delta Lake logo: thick triangular frame (Δ symbol) with wavy bottom.
+    Outer triangle minus inner triangle = the frame; wave covers the flat base.
+    Color: #00B4D8 (Delta Lake brand cyan)
+  -->
+
+  <!-- Triangular frame: outer Δ with inner Δ cut out via evenodd -->
+  <path fill-rule="evenodd" clip-rule="evenodd"
+        d="M20 2L38.5 32H1.5L20 2ZM20 11.5L27.5 31H12.5L20 11.5Z"
+        fill="#00B4D8"/>
+
+  <!--
+    Wave shape that replaces the flat triangle base.
+    Top edge of wave: crests upward at center (~y 27), dips at the sides (y 32).
+    Bottom edge: mirrors, creating a filled "ribbon" wave shape.
+  -->
+  <path d="M1.5 32
+           C 7 27  13.5 29.5  20 27.5
+           C 26.5 25.5  33 27  38.5 32
+           C 35.5 37    27.5 34.5  20 36
+           C 12.5 37.5  4.5 37    1.5 32Z"
+        fill="#00B4D8"/>
+</svg>

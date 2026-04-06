@@ -1,0 +1,19 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Rebuild Dremio Cassandra Connector
+Comment=Detect Dremio version, recompile, and redeploy the Cassandra connector
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SETUP (one time):
+#   1. Edit the two lines below — replace /HOME/USER/... with your actual path
+#   2. Copy this file to ~/Desktop/
+#   3. Right-click the desktop icon → "Allow Launching"
+# ─────────────────────────────────────────────────────────────────────────────
+Exec=/bin/bash -c 'cd "/HOME/USER/dremio-cassandra-connector" && ./"Rebuild Connector.sh"'
+Path=/HOME/USER/dremio-cassandra-connector
+
+Icon=system-run
+Terminal=true
+Categories=Development;Utility;
+StartupNotify=true

@@ -1,0 +1,67 @@
+{
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              { "propName": "host",           "size": "half" },
+              { "propName": "port",           "size": "half" },
+              { "propName": "database",       "size": "half" },
+              { "propName": "clickHouseCloud","size": "half" }
+            ]
+          },
+          {
+            "name": "Credentials",
+            "elements": [
+              { "propName": "username", "size": "half" },
+              { "propName": "password", "size": "half", "securedProperty": true }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "name": "SSL / TLS",
+            "elements": [
+              { "propName": "useSsl",              "size": "half" },
+              { "propName": "sslTrustStorePath",   "size": "full" },
+              { "propName": "sslTrustStorePassword", "size": "half", "securedProperty": true }
+            ]
+          },
+          {
+            "name": "Connection Pool",
+            "elements": [
+              { "propName": "maxIdleConnections",       "size": "half" },
+              { "propName": "connectionTimeoutSeconds", "size": "half" },
+              { "propName": "socketTimeoutSeconds",     "size": "half" }
+            ]
+          },
+          {
+            "name": "Performance",
+            "elements": [
+              { "propName": "enableCompression", "size": "half" },
+              { "propName": "fetchBlockSize",    "size": "half" }
+            ]
+          },
+          {
+            "name": "Catalog",
+            "elements": [
+              { "propName": "excludedDatabases", "size": "full" }
+            ]
+          },
+          {
+            "name": "Advanced",
+            "elements": [
+              { "propName": "additionalJdbcProperties", "size": "full" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

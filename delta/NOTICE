@@ -1,0 +1,38 @@
+Dremio Delta Lake Connector
+Community connector — Apache License 2.0
+
+This product includes the following third-party software:
+
+────────────────────────────────────────────────────────────
+Delta Lake (delta-standalone)
+  Artifact:  io.delta:delta-standalone_2.12
+  License:   Apache License 2.0
+  Source:    https://github.com/delta-io/delta
+
+────────────────────────────────────────────────────────────
+Apache Hadoop
+  Artifact:  org.apache.hadoop:hadoop-common
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/hadoop
+
+────────────────────────────────────────────────────────────
+Apache Parquet
+  Artifact:  org.apache.parquet:parquet-hadoop
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/parquet-mr
+
+────────────────────────────────────────────────────────────
+Google Protocol Buffers
+  Artifact:  com.google.protobuf:protobuf-java:3.25.5
+  License:   BSD 3-Clause License
+  Source:    https://github.com/protocolbuffers/protobuf
+
+────────────────────────────────────────────────────────────
+Dremio Sabot Kernel and Plugin API
+  Artifact:  com.dremio:dremio-sabot-kernel (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  Note: Dremio JARs are used at compile time only and are not bundled
+  in the connector distribution. They must be present in the target
+  Dremio installation.
