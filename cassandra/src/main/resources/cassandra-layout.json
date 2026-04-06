@@ -1,0 +1,176 @@
+{
+  "sourceType": "APACHE_CASSANDRA",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Cassandra for new keyspaces and tables"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.host",
+            "size": "FULL",
+            "label": "Contact Points",
+            "placeholder": "e.g. cassandra-host-1,cassandra-host-2",
+            "tooltip": "Comma-separated list of Cassandra hosts (contact points)",
+            "errMsg": "At least one contact point is required"
+          },
+          {
+            "propName": "config.port",
+            "label": "Native Transport Port",
+            "type": "number",
+            "tooltip": "Cassandra native protocol port (default 9042)"
+          },
+          {
+            "propName": "config.datacenter",
+            "label": "Local Datacenter",
+            "placeholder": "Leave blank to auto-detect",
+            "tooltip": "Name of the local datacenter for DC-aware load balancing (e.g. datacenter1). Leave blank to auto-detect from system.local."
+          },
+          {
+            "propName": "config.fallbackDatacenters",
+            "label": "Fallback Datacenters",
+            "placeholder": "e.g. dc-west,dc-eu",
+            "tooltip": "Comma-separated fallback datacenters. When set, LOCAL_ consistency levels are relaxed (LOCAL_ONE→ONE, LOCAL_QUORUM→QUORUM) so the driver can route to remote DCs when the local DC is unavailable."
+          }
+        ]
+      },
+      {
+        "name": "Credentials",
+        "elements": [
+          {
+            "propName": "config.username",
+            "label": "Username",
+            "placeholder": "Leave empty for no authentication",
+            "tooltip": "Cassandra username (leave empty if authentication is disabled)"
+          },
+          {
+            "propName": "config.password",
+            "label": "Password",
+            "type": "password",
+            "tooltip": "Cassandra password (leave empty if authentication is disabled)"
+          }
+        ]
+      },
+      {
+        "name": "SSL / TLS",
+        "elements": [
+          {
+            "propName": "config.sslEnabled",
+            "label": "Enable SSL/TLS",
+            "type": "checkbox",
+            "tooltip": "Enable SSL/TLS encryption for the Cassandra connection. When checked, the fields below take effect."
+          },
+          {
+            "propName": "config.sslTruststorePath",
+            "label": "Truststore Path",
+            "placeholder": "e.g. /etc/dremio/certs/cassandra-truststore.jks",
+            "tooltip": "Path to a JKS or PKCS12 truststore used to verify the Cassandra server certificate. Leave blank to use the JVM default trust store (suitable for certs signed by well-known CAs)."
+          },
+          {
+            "propName": "config.sslTruststorePassword",
+            "label": "Truststore Password",
+            "type": "password",
+            "tooltip": "Password for the truststore file. Leave blank if the truststore has no password."
+          },
+          {
+            "propName": "config.sslTruststoreType",
+            "label": "Truststore Type",
+            "placeholder": "JKS",
+            "tooltip": "Truststore file format: JKS or PKCS12. Default: JKS."
+          },
+          {
+            "propName": "config.sslKeystorePath",
+            "label": "mTLS Keystore Path",
+            "placeholder": "e.g. /etc/dremio/certs/cassandra-keystore.jks",
+            "tooltip": "Path to a JKS or PKCS12 keystore containing the client certificate and private key for mutual TLS (mTLS). Leave blank for one-way TLS (no client certificate)."
+          },
+          {
+            "propName": "config.sslKeystorePassword",
+            "label": "mTLS Keystore Password",
+            "type": "password",
+            "tooltip": "Password for the mTLS keystore (also used as the key-entry password)."
+          },
+          {
+            "propName": "config.sslKeystoreType",
+            "label": "mTLS Keystore Type",
+            "placeholder": "JKS",
+            "tooltip": "Keystore file format: JKS or PKCS12. Default: JKS."
+          },
+          {
+            "propName": "config.sslHostnameVerification",
+            "label": "TLS Hostname Verification",
+            "type": "checkbox",
+            "tooltip": "Verify that the Cassandra node's hostname matches the certificate CN/SAN. Disable only for self-signed certs in dev/test environments."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.readTimeoutMs",
+            "label": "Read Timeout (ms)",
+            "type": "number",
+            "tooltip": "CQL request timeout in milliseconds (default 30000)"
+          },
+          {
+            "propName": "config.fetchSize",
+            "label": "Fetch Size (rows per page)",
+            "type": "number",
+            "tooltip": "Number of rows fetched per CQL page. Tune for memory vs. round-trips (default 1000)"
+          },
+          {
+            "propName": "config.excludedKeyspaces",
+            "label": "Excluded Keyspaces",
+            "placeholder": "system,system_auth,system_schema",
+            "tooltip": "Comma-separated list of keyspaces to hide from Dremio (system keyspaces are always excluded)"
+          },
+          {
+            "propName": "config.consistencyLevel",
+            "label": "Consistency Level",
+            "placeholder": "LOCAL_ONE",
+            "tooltip": "Cassandra consistency level for read requests (e.g. LOCAL_ONE, LOCAL_QUORUM, QUORUM). Default: LOCAL_ONE"
+          },
+          {
+            "propName": "config.splitParallelism",
+            "label": "Split Parallelism",
+            "type": "number",
+            "tooltip": "Number of parallel token-range splits for reading a table. Higher values increase parallelism (default 8)"
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Metadata Cache TTL (seconds)",
+            "type": "number",
+            "tooltip": "How long to cache Cassandra schema metadata locally before refreshing. Default: 60 seconds"
+          },
+          {
+            "propName": "config.speculativeExecutionEnabled",
+            "label": "Enable Speculative Execution",
+            "type": "checkbox",
+            "tooltip": "Enable speculative execution to retry slow queries on another node before the first completes"
+          },
+          {
+            "propName": "config.speculativeExecutionDelayMs",
+            "label": "Speculative Execution Delay (ms)",
+            "type": "number",
+            "tooltip": "Delay in milliseconds before a speculative retry is sent. Only used when speculative execution is enabled (default 500)"
+          },
+          {
+            "propName": "config.compressionAlgorithm",
+            "label": "Protocol Compression",
+            "placeholder": "NONE",
+            "tooltip": "CQL wire-protocol compression: NONE (default), LZ4, or SNAPPY. Reduces network bandwidth at the cost of CPU. Recommended for WAN or cross-AZ deployments; leave NONE on fast local networks."
+          },
+          {
+            "propName": "config.asyncPagePrefetch",
+            "label": "Async Page Prefetch",
+            "type": "checkbox",
+            "tooltip": "Prefetch the next CQL page asynchronously while writing the current page into Arrow vectors. Overlaps network I/O with CPU work for large scans. Disable only for debugging. Default: enabled."
+          }
+        ]
+      }
+    ]
+  }
+}

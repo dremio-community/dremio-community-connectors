@@ -1,0 +1,28 @@
+<svg id="sources/HUDI" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    Apache Hudi logo: two overlapping mountain triangles + two circular refresh arrows.
+    Left elements: cyan #00AEEF  |  Right elements: dark navy #1B3464
+  -->
+
+  <!-- Left mountain triangle (cyan), shifted left so right one overlaps -->
+  <polygon points="12,28 4,28 12,12 20,28" fill="#00AEEF"/>
+
+  <!-- Right mountain triangle (navy), overlapping left -->
+  <polygon points="28,28 20,28 28,12 36,28" fill="#1B3464"/>
+
+  <!-- Left refresh arc: large CCW arc in cyan, arrowhead at bottom-left -->
+  <!-- Arc sweeps from ~top-right around CCW to bottom-left of left circle -->
+  <path d="M 14,6 A 8,8 0 1 0 6,18" stroke="#00AEEF" stroke-width="2.2"
+        fill="none" stroke-linecap="round"/>
+  <!-- Arrowhead at end of left arc (pointing bottom-left) -->
+  <polyline points="3.5,15.5 6,18 9,16.5" stroke="#00AEEF" stroke-width="2.2"
+            fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Right refresh arc: large CW arc in navy, arrowhead at top-right -->
+  <!-- Arc sweeps from ~bottom-left around CW to top-right of right circle -->
+  <path d="M 26,34 A 8,8 0 1 0 34,22" stroke="#1B3464" stroke-width="2.2"
+        fill="none" stroke-linecap="round"/>
+  <!-- Arrowhead at end of right arc (pointing top-right) -->
+  <polyline points="36.5,24.5 34,22 31,23.5" stroke="#1B3464" stroke-width="2.2"
+            fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

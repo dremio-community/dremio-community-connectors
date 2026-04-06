@@ -1,0 +1,28 @@
+# Maven build output
+target/
+*.class
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Maven wrapper (if not checked in intentionally)
+.mvn/wrapper/maven-wrapper.jar
+
+# Local env / secrets
+.env
+*.env.local
+secrets/
+
+# Logs
+*.log
+
+# Backup files created by rebuild.sh
+pom.xml.bak

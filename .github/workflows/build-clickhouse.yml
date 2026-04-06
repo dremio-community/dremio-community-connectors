@@ -1,0 +1,142 @@
+name: Build ClickHouse Connector
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - 'clickhouse/**'
+      - '.github/workflows/build-clickhouse.yml'
+  pull_request:
+    paths:
+      - 'clickhouse/**'
+      - '.github/workflows/build-clickhouse.yml'
+
+jobs:
+  build:
+    name: Compile & package ClickHouse connector JAR
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clickhouse
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ── 2. Java 11 ───────────────────────────────────────────────────────────
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # ── 3. Install Dremio JARs ───────────────────────────────────────────────
+      - name: Install Dremio JARs to local Maven repo
+        env:
+          DREMIO_VERSION: 26.0.5-202509091642240013-f5051a07
+          DREMIO_IMAGE: dremio/dremio-oss:26.0
+        run: |
+          echo "Pulling Dremio OSS image: $DREMIO_IMAGE"
+          docker pull "$DREMIO_IMAGE" --quiet
+
+          CONTAINER=$(docker create "$DREMIO_IMAGE")
+          mkdir -p /tmp/dremio-jars
+          docker cp "${CONTAINER}:/opt/dremio/jars" /tmp/dremio-jars/
+          docker rm "$CONTAINER" > /dev/null
+
+          JARS_DIR=/tmp/dremio-jars/jars
+
+          install_jar() {
+            local artifact="$1" groupId="${2:-com.dremio}"
+            local jar
+            jar=$(ls "${JARS_DIR}/${artifact}"-[0-9]*.jar 2>/dev/null | head -1)
+            if [ -z "$jar" ]; then
+              jar=$(ls "${JARS_DIR}/3rdparty/${artifact}"-[0-9]*.jar 2>/dev/null | head -1)
+            fi
+            if [ -z "$jar" ]; then
+              echo "  WARN: JAR not found for ${artifact} — skipping"
+              return
+            fi
+            mvn install:install-file -q \
+              -Dfile="$jar" \
+              -DgroupId="$groupId" \
+              -DartifactId="$artifact" \
+              -Dversion="$DREMIO_VERSION" \
+              -Dpackaging=jar
+            echo "  ✓ installed ${artifact}"
+          }
+
+          install_jar_plugins() {
+            local artifact="$1"
+            install_jar "$artifact" "com.dremio.plugins"
+          }
+
+          echo "Installing Dremio core JARs..."
+          install_jar dremio-sabot-kernel
+          install_jar dremio-common
+          install_jar dremio-sabot-kernel-proto
+          install_jar dremio-sabot-vector-tools
+          install_jar dremio-protocol
+          install_jar dremio-connector
+          install_jar dremio-sabot-logical
+          install_jar dremio-common-core
+
+          echo "Installing Dremio CE JDBC JARs..."
+          install_jar_plugins dremio-ce-jdbc-plugin
+          install_jar_plugins dremio-ce-jdbc-fetcher-api
+
+          # Detect calcite version from JAR filename
+          CALCITE_JAR=$(ls "${JARS_DIR}/3rdparty/calcite-core"-*.jar 2>/dev/null | head -1)
+          if [ -n "$CALCITE_JAR" ]; then
+            CALCITE_VER=$(basename "$CALCITE_JAR" .jar | sed 's/calcite-core-//')
+            echo "Detected calcite version: $CALCITE_VER"
+            sed -i "s|<calcite.version>.*</calcite.version>|<calcite.version>${CALCITE_VER}</calcite.version>|" pom.xml
+          fi
+
+          echo "Dremio JAR installation complete."
+
+      # ── 4. Install ClickHouse JDBC driver ────────────────────────────────────
+      - name: Install ClickHouse JDBC driver
+        run: |
+          DRIVER_JAR=$(ls jars/clickhouse-jdbc-*.jar 2>/dev/null | head -1)
+          if [ -n "$DRIVER_JAR" ]; then
+            echo "Using bundled driver: $DRIVER_JAR"
+          else
+            echo "Downloading clickhouse-jdbc 0.4.6 from Maven Central..."
+            mvn dependency:get -q \
+              -Dartifact=com.clickhouse:clickhouse-jdbc:0.4.6:jar:all \
+              -Ddest=/tmp/clickhouse-jdbc-0.4.6-all.jar
+            DRIVER_JAR=/tmp/clickhouse-jdbc-0.4.6-all.jar
+          fi
+          mvn install:install-file -q \
+            -Dfile="$DRIVER_JAR" \
+            -DgroupId=com.clickhouse \
+            -DartifactId=clickhouse-jdbc \
+            -Dversion=0.4.6 \
+            -Dclassifier=all \
+            -Dpackaging=jar
+          echo "✓ ClickHouse JDBC driver installed"
+
+      # ── 5. Build ─────────────────────────────────────────────────────────────
+      - name: Build connector JAR
+        run: mvn package -DskipTests --batch-mode
+
+      # ── 6. Verify output ─────────────────────────────────────────────────────
+      - name: Verify plugin JAR was produced
+        run: |
+          JAR=$(ls target/dremio-clickhouse-connector-*-plugin.jar 2>/dev/null | head -1)
+          if [ -z "$JAR" ]; then
+            echo "ERROR: plugin JAR not found in target/"
+            exit 1
+          fi
+          echo "✓ Build succeeded: $(basename $JAR) ($(du -sh $JAR | cut -f1))"
+
+      # ── 7. Upload artifact ───────────────────────────────────────────────────
+      - name: Upload plugin JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: dremio-clickhouse-connector-plugin
+          path: clickhouse/target/dremio-clickhouse-connector-*-plugin.jar
+          retention-days: 7

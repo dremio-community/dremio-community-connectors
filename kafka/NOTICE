@@ -1,0 +1,33 @@
+Dremio Apache Kafka Connector
+Community connector — Apache License 2.0
+
+This product includes the following third-party software:
+
+────────────────────────────────────────────────────────────
+Apache Kafka Client
+  Artifact:  org.apache.kafka:kafka-clients
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/kafka
+
+────────────────────────────────────────────────────────────
+Apache Avro
+  Artifact:  org.apache.avro:avro
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/avro
+
+────────────────────────────────────────────────────────────
+Confluent Schema Registry Client
+  Artifact:  io.confluent:kafka-schema-registry-client
+  License:   Apache License 2.0
+  Source:    https://github.com/confluentinc/schema-registry
+  Repository: https://packages.confluent.io/maven/
+
+────────────────────────────────────────────────────────────
+Dremio Sabot Kernel and Plugin API
+  Artifact:  com.dremio:dremio-sabot-kernel (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  Note: Dremio JARs are used at compile time only and are not bundled
+  in the connector distribution. They must be present in the target
+  Dremio installation.

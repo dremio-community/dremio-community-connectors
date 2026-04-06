@@ -1,0 +1,2088 @@
+#
+# Dremio ARP dialect definition for ClickHouse.
+#
+# This YAML file drives all SQL translation, type mapping, predicate pushdown,
+# aggregation pushdown, and scalar function support for the ClickHouse connector.
+#
+# ClickHouse references:
+#   https://clickhouse.com/docs/en/sql-reference/data-types
+#   https://clickhouse.com/docs/en/sql-reference/functions
+#   https://clickhouse.com/docs/en/sql-reference/statements/select
+#
+
+metadata:
+  name: ClickHouse
+  apiname: CLICKHOUSE
+  spec_version: '1'
+
+syntax:
+  # ClickHouse uses backtick for identifier quoting (double quotes also work
+  # with enable_analyzer=1 but backtick is the reliable default)
+  identifier_quote: "`"
+  identifier_length_limit: 256
+  allows_boolean_literal: true
+  map_boolean_literal_to_bit: false
+  # ClickHouse has no catalog-level concept; databases map to Dremio schemas
+  supports_catalogs: false
+  supports_schemas: true
+
+capabilities:
+  max_nested_subqueries: 4
+  subqueries_require_alias: true
+  supports_distinct_on_non_aggregate: true
+  supports_orderby_uncollapse: true
+
+# ============================================================================
+# DATA TYPE MAPPINGS
+#
+# Maps ClickHouse JDBC type names -> Dremio types.
+# Wrapper types (Nullable, LowCardinality) are stripped by ClickHouseDialect
+# before this lookup, so only bare inner type names are used here.
+# ============================================================================
+data_types:
+  mappings:
+
+    # --- Signed integers ---
+    - source:
+        name: "Int8"
+      dremio:
+        name: "INTEGER"
+      required_cast_args: "none"
+    - source:
+        name: "Int16"
+      dremio:
+        name: "INTEGER"
+      required_cast_args: "none"
+    - source:
+        name: "Int32"
+      dremio:
+        name: "INTEGER"
+      required_cast_args: "none"
+    - source:
+        name: "Int64"
+      dremio:
+        name: "BIGINT"
+      required_cast_args: "none"
+
+    # --- Unsigned integers ---
+    # UInt8/16/32 fit in signed INT; UInt64 may exceed signed BIGINT but BIGINT
+    # is the closest Dremio type available.
+    - source:
+        name: "UInt8"
+      dremio:
+        name: "INTEGER"
+      required_cast_args: "none"
+    - source:
+        name: "UInt16"
+      dremio:
+        name: "INTEGER"
+      required_cast_args: "none"
+    - source:
+        name: "UInt32"
+      dremio:
+        name: "BIGINT"
+      required_cast_args: "none"
+    - source:
+        name: "UInt64"
+      dremio:
+        name: "BIGINT"
+      required_cast_args: "none"
+    - source:
+        name: "UInt128"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "UInt256"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "Int128"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "Int256"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- Floating point ---
+    - source:
+        name: "Float32"
+      dremio:
+        name: "FLOAT"
+      required_cast_args: "none"
+    - source:
+        name: "Float64"
+      dremio:
+        name: "DOUBLE"
+      required_cast_args: "none"
+
+    # --- Decimal (arbitrary precision) ---
+    # ClickHouse JDBC returns the bare type name "Decimal" for Decimal(P,S).
+    # Dremio will use precision/scale from ResultSetMetaData.
+    - source:
+        name: "Decimal"
+      dremio:
+        name: "DECIMAL"
+      required_cast_args: "precision_scale"
+    - source:
+        name: "Decimal32"
+      dremio:
+        name: "DECIMAL"
+      required_cast_args: "precision_scale"
+    - source:
+        name: "Decimal64"
+      dremio:
+        name: "DECIMAL"
+      required_cast_args: "precision_scale"
+    - source:
+        name: "Decimal128"
+      dremio:
+        name: "DECIMAL"
+      required_cast_args: "precision_scale"
+    - source:
+        name: "Decimal256"
+      dremio:
+        name: "DECIMAL"
+      required_cast_args: "precision_scale"
+
+    # --- String types ---
+    - source:
+        name: "String"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    # FixedString(N) — stripped to "FixedString" by ClickHouseDialect
+    - source:
+        name: "FixedString"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- Boolean ---
+    - source:
+        name: "Bool"
+      dremio:
+        name: "BOOLEAN"
+      required_cast_args: "none"
+
+    # --- Date / Time ---
+    - source:
+        name: "Date"
+      dremio:
+        name: "DATE"
+      required_cast_args: "none"
+    - source:
+        name: "Date32"
+      dremio:
+        name: "DATE"
+      required_cast_args: "none"
+    - source:
+        name: "DateTime"
+      dremio:
+        name: "TIMESTAMP"
+      required_cast_args: "none"
+    # DateTime64(p) — normalised to "DateTime64" by ClickHouseDialect
+    - source:
+        name: "DateTime64"
+      dremio:
+        name: "TIMESTAMP"
+      required_cast_args: "none"
+
+    # --- UUID ---
+    - source:
+        name: "UUID"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- IPv4 / IPv6 ---
+    - source:
+        name: "IPv4"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "IPv6"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- Complex types — Array, Tuple, Map ---
+    # These cannot be represented natively in Dremio's flat relational model.
+    # Surfaced as VARCHAR (the raw string representation). Known limitation.
+    - source:
+        name: "Array"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "Tuple"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "Map"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- Enum types ---
+    - source:
+        name: "Enum8"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+    - source:
+        name: "Enum16"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+    # --- JSON (ClickHouse experimental type) ---
+    - source:
+        name: "Object"
+      dremio:
+        name: "VARCHAR"
+      required_cast_args: "none"
+
+# ============================================================================
+# RELATIONAL ALGEBRA — what Dremio can push down to ClickHouse
+# ============================================================================
+relational_algebra:
+
+  aggregation:
+    enable: true
+    group_by_ordinal: false
+    distinct: true
+    count_functions:
+      count_star:
+        enable: true
+      count:
+        enable: true
+      count_distinct:
+        enable: true
+    functions:
+      - names:
+          - "sum"
+        signatures:
+          - args: ["double"]
+            return: "double"
+          - args: ["integer"]
+            return: "bigint"
+          - args: ["bigint"]
+            return: "bigint"
+          - args: ["float"]
+            return: "double"
+          - args: ["decimal"]
+            return: "decimal"
+      - names:
+          - "avg"
+        signatures:
+          - args: ["double"]
+            return: "double"
+          - args: ["integer"]
+            return: "double"
+          - args: ["bigint"]
+            return: "double"
+          - args: ["float"]
+            return: "double"
+          - args: ["decimal"]
+            return: "decimal"
+      - names:
+          - "min"
+          - "max"
+        signatures:
+          - args: ["double"]
+            return: "double"
+          - args: ["integer"]
+            return: "integer"
+          - args: ["bigint"]
+            return: "bigint"
+          - args: ["float"]
+            return: "float"
+          - args: ["decimal"]
+            return: "decimal"
+          - args: ["varchar"]
+            return: "varchar"
+          - args: ["date"]
+            return: "date"
+          - args: ["timestamp"]
+            return: "timestamp"
+      # HyperLogLog approximate distinct count — maps to ClickHouse uniq()
+      - names:
+          - "approx_count_distinct"
+        signatures:
+          - args: ["varchar"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+          - args: ["integer"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+          - args: ["bigint"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+          - args: ["double"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+          - args: ["date"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+          - args: ["timestamp"]
+            return: "bigint"
+            rewrite: "uniq({0})"
+
+      # MEDIAN — maps directly to ClickHouse median() (alias for quantile(0.5))
+      - names:
+          - "median"
+        signatures:
+          - args: ["double"]
+            return: "double"
+            rewrite: "median({0})"
+          - args: ["float"]
+            return: "double"
+            rewrite: "median({0})"
+          - args: ["integer"]
+            return: "double"
+            rewrite: "median({0})"
+          - args: ["bigint"]
+            return: "double"
+            rewrite: "median({0})"
+          - args: ["decimal"]
+            return: "double"
+            rewrite: "median({0})"
+
+      # Pick any value from the group — maps to ClickHouse any()
+      - names:
+          - "single_value"
+        signatures:
+          - args: ["varchar"]
+            return: "varchar"
+            rewrite: "any({0})"
+          - args: ["integer"]
+            return: "integer"
+            rewrite: "any({0})"
+          - args: ["bigint"]
+            return: "bigint"
+            rewrite: "any({0})"
+          - args: ["double"]
+            return: "double"
+            rewrite: "any({0})"
+          - args: ["decimal"]
+            return: "decimal"
+            rewrite: "any({0})"
+          - args: ["date"]
+            return: "date"
+            rewrite: "any({0})"
+          - args: ["timestamp"]
+            return: "timestamp"
+            rewrite: "any({0})"
+
+  project:
+    enable: true
+
+  filter:
+    enable: true
+
+  sort:
+    enable: true
+    order_by:
+      enable: true
+      default_nulls_ordering: low
+    fetch_offset:
+      offset_fetch:
+        enable: true
+        format: 'LIMIT {1} OFFSET {0}'
+      offset_only:
+        enable: false
+      fetch_only:
+        enable: true
+        format: 'LIMIT {0}'
+
+  union:
+    enable: true
+
+  union_all:
+    enable: true
+
+  values:
+    enable: false
+    method: 'values'
+
+  join:
+    enable: true
+    cross:
+      enable: true
+    inner:
+      enable: true
+      inequality: true
+    left:
+      enable: true
+      inequality: true
+    right:
+      enable: true
+      inequality: true
+    full:
+      enable: true
+      inequality: false
+
+# ============================================================================
+# EXPRESSIONS — scalar functions, operators, subqueries
+#
+# IMPORTANT: operator "names" must come from the fixed ARP enum
+# (arp/schema/arp_schema.json #/definitions/operator_list).
+# ClickHouse-specific functions are expressed via "rewrite" on standard names.
+# ============================================================================
+expressions:
+
+  subqueries:
+    enable: true
+    correlated: false
+    scalar: true
+    in_clause: true
+    exists_clause: false
+
+  supports_case: true
+  supports_over: false
+
+  # DateTime format strings for TO_CHAR pushdown.
+  # TO_CHAR is intercepted in ClickHouseDialect.unparseCall() and rewritten to
+  # ClickHouse's formatDateTime(expr, fmt) with Oracle→C-style format translation.
+  # Enable every format code that has a clean ClickHouse equivalent.
+  datetime_formats:
+    era:
+      enable: false          # no ClickHouse equivalent
+    meridian:
+      enable: true           # AM/PM → %p
+    century:
+      enable: false          # no ClickHouse equivalent
+    week_of_year:
+      enable: true           # WW → %V (ISO-8601 week number)
+    day_of_week:
+      enable: true           # D → %w (0=Sun in ClickHouse; Oracle starts at 1=Mon — close enough)
+    day_name_abbreviated:
+      enable: true           # DY → %a
+    day_name:
+      enable: true           # DAY → %A
+    year_4:
+      enable: true           # YYYY → %Y
+    year_2:
+      enable: true           # YY → %y
+    day_of_year:
+      enable: true           # DDD → %j
+    month:
+      enable: true           # MM → %m
+    month_name_abbreviated:
+      enable: true           # MON → %b
+    month_name:
+      enable: true           # MONTH → %B
+    day_of_month:
+      enable: true           # DD → %d
+    hour_12:
+      enable: true           # HH12 → %I
+    hour_24:
+      enable: true           # HH24 → %H
+    minute:
+      enable: true           # MI → %M
+    second:
+      enable: true           # SS → %S
+    millisecond:
+      enable: false          # formatDateTime has no sub-second code
+    timezone_abbreviation:
+      enable: true           # TZ → %Z
+    timezone_offset:
+      enable: false          # no ClickHouse equivalent
+
+  window_functions: []
+
+  operators:
+
+    # -----------------------------------------------------------------------
+    # Comparison
+    # -----------------------------------------------------------------------
+    - names:
+      - "="
+      - "<>"
+      - "!="
+      - ">"
+      - ">="
+      - "<"
+      - "<="
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "boolean"
+      - args:
+        - "float"
+        - "float"
+        return: "boolean"
+      - args:
+        - "integer"
+        - "integer"
+        return: "boolean"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "boolean"
+      - args:
+        - "decimal"
+        - "decimal"
+        return: "boolean"
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "boolean"
+      - args:
+        - "boolean"
+        - "boolean"
+        return: "boolean"
+      - args:
+        - "date"
+        - "date"
+        return: "boolean"
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "boolean"
+
+    # -----------------------------------------------------------------------
+    # Arithmetic
+    # -----------------------------------------------------------------------
+    - names:
+      - "+"
+      - "-"
+      - "*"
+      - "/"
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+      - args:
+        - "float"
+        - "float"
+        return: "float"
+      - args:
+        - "integer"
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "decimal"
+        - "decimal"
+        return: "decimal"
+
+    - names:
+      - "%"
+      signatures:
+      - args:
+        - "integer"
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "bigint"
+
+    # MOD(a, b) scalar function form of modulo — same as %, added for completeness
+    - names:
+      - "mod"
+      signatures:
+      - args:
+        - "integer"
+        - "integer"
+        return: "integer"
+        rewrite: "modulo({0}, {1})"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "bigint"
+        rewrite: "modulo({0}, {1})"
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+        rewrite: "moduloOrZero(toInt64({0}), toInt64({1}))"
+
+    # -----------------------------------------------------------------------
+    # Logical
+    # -----------------------------------------------------------------------
+    - names:
+      - "not"
+      signatures:
+      - args:
+        - "boolean"
+        return: "boolean"
+
+    # -----------------------------------------------------------------------
+    # IS NULL / IS NOT NULL
+    # -----------------------------------------------------------------------
+    - names:
+      - "is null"
+      - "is not null"
+      signatures:
+      - args:
+        - "double"
+        return: "boolean"
+      - args:
+        - "float"
+        return: "boolean"
+      - args:
+        - "integer"
+        return: "boolean"
+      - args:
+        - "bigint"
+        return: "boolean"
+      - args:
+        - "decimal"
+        return: "boolean"
+      - args:
+        - "varchar"
+        return: "boolean"
+      - args:
+        - "boolean"
+        return: "boolean"
+      - args:
+        - "date"
+        return: "boolean"
+      - args:
+        - "timestamp"
+        return: "boolean"
+
+    # -----------------------------------------------------------------------
+    # LIKE / ILIKE
+    # -----------------------------------------------------------------------
+    - names:
+      - "like"
+      - "not like"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "boolean"
+
+    # NOTE: ILIKE (case-insensitive LIKE) is NOT added here.
+    # Dremio 26.x's Calcite SQL parser does not include ILIKE in its grammar —
+    # any query containing ILIKE fails with a parse error before reaching ARP.
+    # Workaround: use REGEXP_LIKE(col, '(?i)pattern') for case-insensitive matching.
+
+    # -----------------------------------------------------------------------
+    # BETWEEN
+    # -----------------------------------------------------------------------
+    - names:
+      - "between"
+      - "not between"
+      signatures:
+      - args:
+        - "integer"
+        - "integer"
+        - "integer"
+        return: "boolean"
+      - args:
+        - "bigint"
+        - "bigint"
+        - "bigint"
+        return: "boolean"
+      - args:
+        - "double"
+        - "double"
+        - "double"
+        return: "boolean"
+      - args:
+        - "float"
+        - "float"
+        - "float"
+        return: "boolean"
+      - args:
+        - "decimal"
+        - "decimal"
+        - "decimal"
+        return: "boolean"
+      - args:
+        - "varchar"
+        - "varchar"
+        - "varchar"
+        return: "boolean"
+      - args:
+        - "date"
+        - "date"
+        - "date"
+        return: "boolean"
+      - args:
+        - "timestamp"
+        - "timestamp"
+        - "timestamp"
+        return: "boolean"
+
+    # -----------------------------------------------------------------------
+    # IN / NOT IN — pushes down literal value list filters
+    # -----------------------------------------------------------------------
+    - names:
+      - "in"
+      - "not in"
+      signatures:
+      - args:
+        - "varchar"
+        return: "boolean"
+      - args:
+        - "integer"
+        return: "boolean"
+      - args:
+        - "bigint"
+        return: "boolean"
+      - args:
+        - "double"
+        return: "boolean"
+      - args:
+        - "float"
+        return: "boolean"
+      - args:
+        - "decimal"
+        return: "boolean"
+      - args:
+        - "date"
+        return: "boolean"
+      - args:
+        - "timestamp"
+        return: "boolean"
+      - args:
+        - "boolean"
+        return: "boolean"
+
+    # -----------------------------------------------------------------------
+    # NULLIF
+    # -----------------------------------------------------------------------
+    - names:
+      - "nullif"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "varchar"
+      - args:
+        - "integer"
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+      - args:
+        - "decimal"
+        - "decimal"
+        return: "decimal"
+      - args:
+        - "date"
+        - "date"
+        return: "date"
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "timestamp"
+
+    # -----------------------------------------------------------------------
+    # CAST — ClickHouse uses toInt32/toInt64/toFloat64/toString/toDate/etc.
+    # -----------------------------------------------------------------------
+    - names:
+      - "cast"
+      signatures:
+      - args:
+        - "integer"
+        return: "integer"
+        rewrite: "toInt32({0})"
+      - args:
+        - "integer"
+        return: "bigint"
+        rewrite: "toInt64({0})"
+      - args:
+        - "integer"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "integer"
+        return: "float"
+        rewrite: "toFloat32({0})"
+      - args:
+        - "integer"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "bigint"
+        return: "integer"
+        rewrite: "toInt32({0})"
+      - args:
+        - "bigint"
+        return: "bigint"
+        rewrite: "toInt64({0})"
+      - args:
+        - "bigint"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "bigint"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "double"
+        return: "integer"
+        rewrite: "toInt32({0})"
+      - args:
+        - "double"
+        return: "bigint"
+        rewrite: "toInt64({0})"
+      - args:
+        - "double"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "double"
+        return: "float"
+        rewrite: "toFloat32({0})"
+      - args:
+        - "double"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "float"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "float"
+        return: "float"
+        rewrite: "toFloat32({0})"
+      - args:
+        - "float"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "varchar"
+        return: "integer"
+        rewrite: "toInt32({0})"
+      - args:
+        - "varchar"
+        return: "bigint"
+        rewrite: "toInt64({0})"
+      - args:
+        - "varchar"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "varchar"
+        return: "float"
+        rewrite: "toFloat32({0})"
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "varchar"
+        return: "date"
+        rewrite: "toDate({0})"
+      - args:
+        - "varchar"
+        return: "timestamp"
+        rewrite: "toDateTime({0})"
+      - args:
+        - "date"
+        return: "timestamp"
+        rewrite: "toDateTime({0})"
+      - args:
+        - "date"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "timestamp"
+        return: "date"
+        rewrite: "toDate({0})"
+      - args:
+        - "timestamp"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toDateTime({0})"
+      - args:
+        - "integer"
+        return: "decimal"
+        rewrite: "toDecimal64({0}, 9)"
+      - args:
+        - "bigint"
+        return: "decimal"
+        rewrite: "toDecimal64({0}, 9)"
+      - args:
+        - "double"
+        return: "decimal"
+        rewrite: "toDecimal64({0}, 9)"
+      - args:
+        - "boolean"
+        return: "integer"
+        rewrite: "toUInt8({0})"
+      - args:
+        - "boolean"
+        return: "varchar"
+        rewrite: "toString({0})"
+      - args:
+        - "decimal"
+        return: "integer"
+        rewrite: "toInt32({0})"
+      - args:
+        - "decimal"
+        return: "bigint"
+        rewrite: "toInt64({0})"
+      - args:
+        - "decimal"
+        return: "double"
+        rewrite: "toFloat64({0})"
+      - args:
+        - "decimal"
+        return: "varchar"
+        rewrite: "toString({0})"
+
+    # -----------------------------------------------------------------------
+    # String functions
+    # -----------------------------------------------------------------------
+    - names:
+      - "char_length"
+      - "character_length"
+      signatures:
+      - args:
+        - "varchar"
+        return: "integer"
+        rewrite: "length({0})"
+
+    - names:
+      - "upper"
+      - "ucase"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "upper({0})"
+
+    - names:
+      - "lower"
+      - "lcase"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "lower({0})"
+
+    - names:
+      - "ltrim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "trimLeft({0})"
+
+    - names:
+      - "rtrim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "trimRight({0})"
+
+    - names:
+      - "trim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "trimBoth({0})"
+
+    - names:
+      - "substr"
+      - "substring"
+      signatures:
+      - args:
+        - "varchar"
+        - "integer"
+        return: "varchar"
+        rewrite: "substring({0}, {1})"
+      - args:
+        - "varchar"
+        - "integer"
+        - "integer"
+        return: "varchar"
+        rewrite: "substring({0}, {1}, {2})"
+
+    # In Dremio: locate(substr, str) — ClickHouse: position(str, substr)
+    - names:
+      - "locate"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "integer"
+        rewrite: "position({1}, {0})"
+      - args:
+        - "varchar"
+        - "varchar"
+        - "integer"
+        return: "integer"
+        rewrite: "position({1}, {0}, {2})"
+
+    - names:
+      - "position"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "integer"
+
+    - names:
+      - "replace"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        - "varchar"
+        return: "varchar"
+
+    - names:
+      - "reverse"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+
+    - names:
+      - "left"
+      signatures:
+      - args:
+        - "varchar"
+        - "integer"
+        return: "varchar"
+
+    - names:
+      - "right"
+      signatures:
+      - args:
+        - "varchar"
+        - "integer"
+        return: "varchar"
+
+    - names:
+      - "lpad"
+      signatures:
+      - args:
+        - "varchar"
+        - "integer"
+        - "varchar"
+        return: "varchar"
+        rewrite: "leftPad({0}, {1}, {2})"
+
+    - names:
+      - "rpad"
+      signatures:
+      - args:
+        - "varchar"
+        - "integer"
+        - "varchar"
+        return: "varchar"
+        rewrite: "rightPad({0}, {1}, {2})"
+
+    - names:
+      - "space"
+      signatures:
+      - args:
+        - "integer"
+        return: "varchar"
+
+    - names:
+      - "ascii"
+      signatures:
+      - args:
+        - "varchar"
+        return: "integer"
+
+    - names:
+      - "chr"
+      signatures:
+      - args:
+        - "integer"
+        return: "varchar"
+        rewrite: "char({0})"
+
+    - names:
+      - "to_hex"
+      signatures:
+      - args:
+        - "integer"
+        return: "varchar"
+        rewrite: "hex({0})"
+      - args:
+        - "bigint"
+        return: "varchar"
+        rewrite: "hex({0})"
+
+    - names:
+      - "regexp_like"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "boolean"
+        rewrite: "match({0}, {1})"
+
+    - names:
+      - "regexp_replace"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        - "varchar"
+        return: "varchar"
+        rewrite: "replaceRegexpAll({0}, {1}, {2})"
+
+    # REGEXP_EXTRACT(str, pattern, group_index) — extract the Nth capture group.
+    # Dremio's internal function registry only has the 3-arg form; a 2-arg form
+    # does not exist and should not be added.
+    # ClickHouse: extractGroups(haystack, pattern)[N] returns the Nth capture group.
+    # Group index is 1-based; use group=1 for the first captured group.
+    - names:
+      - "regexp_extract"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        - "integer"
+        return: "varchar"
+        rewrite: "extractGroups({0}, {1})[toUInt32({2})]"
+
+    # initcap: capitalise first letter of each word, lower-case the rest.
+    # ClickHouse has an identically-behaved initcap() function.
+    - names:
+      - "initcap"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+        rewrite: "initcap({0})"
+
+    # SPLIT_PART(str, delimiter, part_index) — 1-based, same as PostgreSQL/Dremio.
+    # ClickHouse: splitByString(delim, str)[n]. Index is 1-based in both.
+    - names:
+      - "split_part"
+      signatures:
+      - args:
+        - "varchar"
+        - "varchar"
+        - "integer"
+        return: "varchar"
+        rewrite: "splitByString({1}, {0})[toUInt32({2})]"
+
+    # NOTE: IIF / IF / IFF are not available in Dremio 26.x's SQL parser.
+    # Use standard CASE WHEN condition THEN a ELSE b END instead.
+    # CASE WHEN pushes down to ClickHouse as-is (standard SQL supported by both).
+
+    # -----------------------------------------------------------------------
+    # Math functions
+    # -----------------------------------------------------------------------
+    - names:
+      - "abs"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "float"
+        return: "float"
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "decimal"
+        return: "decimal"
+
+    - names:
+      - "ceil"
+      - "ceiling"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "float"
+        return: "float"
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "decimal"
+        return: "decimal"
+
+    - names:
+      - "floor"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "float"
+        return: "float"
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "decimal"
+        return: "decimal"
+
+    - names:
+      - "round"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "double"
+        - "integer"
+        return: "double"
+      - args:
+        - "float"
+        return: "float"
+      - args:
+        - "decimal"
+        return: "decimal"
+      - args:
+        - "decimal"
+        - "integer"
+        return: "decimal"
+
+    - names:
+      - "sqrt"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "double"
+
+    # ClickHouse: log(x) = natural log; ln(x) is an alias
+    - names:
+      - "ln"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+        rewrite: "log({0})"
+      - args:
+        - "integer"
+        return: "double"
+        rewrite: "log(toFloat64({0}))"
+
+    - names:
+      - "log10"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "double"
+
+    - names:
+      - "exp"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "pow"
+      - "power"
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+        rewrite: "pow({0}, {1})"
+      - args:
+        - "integer"
+        - "integer"
+        return: "double"
+        rewrite: "pow(toFloat64({0}), toFloat64({1}))"
+
+    - names:
+      - "sign"
+      signatures:
+      - args:
+        - "double"
+        return: "integer"
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "integer"
+
+    - names:
+      - "sin"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "cos"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "tan"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "asin"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "acos"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "atan"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "atan2"
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+
+    - names:
+      - "degrees"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "radians"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+
+    - names:
+      - "trunc"
+      - "truncate"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+        rewrite: "trunc({0})"
+      - args:
+        - "double"
+        - "integer"
+        return: "double"
+        rewrite: "trunc({0}, {1})"
+      - args:
+        - "decimal"
+        return: "decimal"
+        rewrite: "trunc({0})"
+      - args:
+        - "decimal"
+        - "integer"
+        return: "decimal"
+        rewrite: "trunc({0}, {1})"
+
+    - names:
+      - "log2"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "double"
+        rewrite: "log2(toFloat64({0}))"
+
+    - names:
+      - "pi"
+      signatures:
+      - args: []
+        return: "double"
+
+    - names:
+      - "rand"
+      - "random"
+      signatures:
+      - args: []
+        return: "double"
+        rewrite: "rand()"
+
+    # -----------------------------------------------------------------------
+    # Date/time extraction — rewrite to ClickHouse native functions
+    # -----------------------------------------------------------------------
+    - names:
+      - "extract_year"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toYear({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toYear({0})"
+
+    - names:
+      - "extract_month"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toMonth({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toMonth({0})"
+
+    - names:
+      - "extract_day"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toDayOfMonth({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toDayOfMonth({0})"
+
+    - names:
+      - "extract_hour"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toHour({0})"
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toHour(toDateTime({0}))"
+
+    - names:
+      - "extract_minute"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toMinute({0})"
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "0"
+
+    - names:
+      - "extract_second"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toSecond({0})"
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "0"
+
+    - names:
+      - "extract_dow"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toDayOfWeek({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toDayOfWeek({0})"
+
+    - names:
+      - "extract_doy"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toDayOfYear({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toDayOfYear({0})"
+
+    - names:
+      - "extract_quarter"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toQuarter({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toQuarter({0})"
+
+    - names:
+      - "extract_week"
+      signatures:
+      - args:
+        - "date"
+        return: "bigint"
+        rewrite: "toWeek({0})"
+      - args:
+        - "timestamp"
+        return: "bigint"
+        rewrite: "toWeek({0})"
+
+    # -----------------------------------------------------------------------
+    # Date truncation
+    # -----------------------------------------------------------------------
+    - names:
+      - "date_trunc_year"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfYear({0})"
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "toStartOfYear({0})"
+
+    - names:
+      - "date_trunc_quarter"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfQuarter({0})"
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "toStartOfQuarter({0})"
+
+    - names:
+      - "date_trunc_month"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfMonth({0})"
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "toStartOfMonth({0})"
+
+    - names:
+      - "date_trunc_week"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfWeek({0})"
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "toStartOfWeek({0})"
+
+    - names:
+      - "date_trunc_day"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfDay({0})"
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "{0}"
+
+    - names:
+      - "date_trunc_hour"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfHour({0})"
+
+    - names:
+      - "date_trunc_minute"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfMinute({0})"
+
+    - names:
+      - "date_trunc_second"
+      signatures:
+      - args:
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "toStartOfSecond({0})"
+
+    # -----------------------------------------------------------------------
+    # Timestamp add — args: (integer_amount, date_or_timestamp)
+    # -----------------------------------------------------------------------
+    - names:
+      - "timestampadd_year"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addYears({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addYears({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "date"
+        rewrite: "addYears({1}, {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "date"
+        rewrite: "addYears({1}, {0})"
+
+    - names:
+      - "timestampadd_quarter"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addQuarters({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addQuarters({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "date"
+        rewrite: "addQuarters({1}, {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "date"
+        rewrite: "addQuarters({1}, {0})"
+
+    - names:
+      - "timestampadd_month"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addMonths({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addMonths({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "date"
+        rewrite: "addMonths({1}, {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "date"
+        rewrite: "addMonths({1}, {0})"
+
+    - names:
+      - "timestampadd_week"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addWeeks({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addWeeks({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "date"
+        rewrite: "addWeeks({1}, {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "date"
+        rewrite: "addWeeks({1}, {0})"
+
+    - names:
+      - "timestampadd_day"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addDays({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addDays({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "date"
+        rewrite: "addDays({1}, {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "date"
+        rewrite: "addDays({1}, {0})"
+
+    - names:
+      - "timestampadd_hour"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addHours({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addHours({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "timestamp"
+        rewrite: "addHours(toDateTime({1}), {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "timestamp"
+        rewrite: "addHours(toDateTime({1}), {0})"
+
+    - names:
+      - "timestampadd_minute"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addMinutes({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addMinutes({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "timestamp"
+        rewrite: "addMinutes(toDateTime({1}), {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "timestamp"
+        rewrite: "addMinutes(toDateTime({1}), {0})"
+
+    - names:
+      - "timestampadd_second"
+      signatures:
+      - args:
+        - "integer"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addSeconds({1}, {0})"
+      - args:
+        - "bigint"
+        - "timestamp"
+        return: "timestamp"
+        rewrite: "addSeconds({1}, {0})"
+      - args:
+        - "integer"
+        - "date"
+        return: "timestamp"
+        rewrite: "addSeconds(toDateTime({1}), {0})"
+      - args:
+        - "bigint"
+        - "date"
+        return: "timestamp"
+        rewrite: "addSeconds(toDateTime({1}), {0})"
+
+    # -----------------------------------------------------------------------
+    # Timestamp diff — args: (timestamp_start, timestamp_end)
+    # -----------------------------------------------------------------------
+    - names:
+      - "timestampdiff_year"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('year', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('year', {0}, {1})"
+      - args:
+        - "timestamp"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('year', {0}, toDateTime({1}))"
+      - args:
+        - "date"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('year', toDateTime({0}), {1})"
+
+    - names:
+      - "timestampdiff_quarter"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('quarter', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('quarter', {0}, {1})"
+
+    - names:
+      - "timestampdiff_month"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('month', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('month', {0}, {1})"
+      - args:
+        - "timestamp"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('month', {0}, toDateTime({1}))"
+      - args:
+        - "date"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('month', toDateTime({0}), {1})"
+
+    - names:
+      - "timestampdiff_week"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('week', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('week', {0}, {1})"
+
+    - names:
+      - "timestampdiff_day"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('day', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('day', {0}, {1})"
+      - args:
+        - "timestamp"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('day', {0}, toDateTime({1}))"
+      - args:
+        - "date"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('day', toDateTime({0}), {1})"
+
+    - names:
+      - "timestampdiff_hour"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('hour', {0}, {1})"
+      - args:
+        - "timestamp"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('hour', {0}, toDateTime({1}))"
+      - args:
+        - "date"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('hour', toDateTime({0}), {1})"
+
+    - names:
+      - "timestampdiff_minute"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('minute', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('minute', {0}, {1})"
+
+    - names:
+      - "timestampdiff_second"
+      signatures:
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "integer"
+        rewrite: "dateDiff('second', {0}, {1})"
+      - args:
+        - "date"
+        - "date"
+        return: "integer"
+        rewrite: "dateDiff('second', {0}, {1})"
+
+    # -----------------------------------------------------------------------
+    # Date conversion
+    # -----------------------------------------------------------------------
+    - names:
+      - "to_date"
+      signatures:
+      - args:
+        - "date"
+        return: "date"
+        rewrite: "{0}"
+      - args:
+        - "timestamp"
+        return: "date"
+        rewrite: "toDate({0})"
+      - args:
+        - "varchar"
+        return: "date"
+        rewrite: "toDate({0})"
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "date"
+        rewrite: "toDate({0})"
+
+    - names:
+      - "now"
+      - "current_timestamp"
+      signatures:
+      - args: []
+        return: "timestamp"
+        rewrite: "now()"
+
+    - names:
+      - "current_date"
+      signatures:
+      - args: []
+        return: "date"
+        rewrite: "today()"
+
+  # -------------------------------------------------------------------------
+  # Variable-length operators (concat, AND, OR, COALESCE)
+  # -------------------------------------------------------------------------
+  variable_length_operators:
+  - names:
+    - "concat"
+    variable_signatures:
+    - return: "varchar"
+      arg_type: "varchar"
+  - names:
+    - "and"
+    variable_signatures:
+    - return: "boolean"
+      arg_type: "boolean"
+  - names:
+    - "or"
+    variable_signatures:
+    - return: "boolean"
+      arg_type: "boolean"
+  - names:
+    - "coalesce"
+    variable_signatures:
+    - return: "double"
+      arg_type: "double"
+    - return: "float"
+      arg_type: "float"
+    - return: "integer"
+      arg_type: "integer"
+    - return: "bigint"
+      arg_type: "bigint"
+    - return: "decimal"
+      arg_type: "decimal"
+    - return: "varchar"
+      arg_type: "varchar"
+    - return: "boolean"
+      arg_type: "boolean"
+    - return: "date"
+      arg_type: "date"
+    - return: "timestamp"
+      arg_type: "timestamp"

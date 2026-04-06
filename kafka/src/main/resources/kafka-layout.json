@@ -1,0 +1,189 @@
+{
+  "sourceType": "APACHE_KAFKA",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Kafka for new topics"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.bootstrapServers",
+            "size": "FULL",
+            "label": "Bootstrap Servers",
+            "placeholder": "e.g. broker1:9092,broker2:9092",
+            "tooltip": "Comma-separated list of Kafka broker addresses (host:port)",
+            "errMsg": "At least one bootstrap server is required"
+          }
+        ]
+      },
+      {
+        "name": "Schema",
+        "elements": [
+          {
+            "propName": "config.schemaMode",
+            "label": "Schema Mode",
+            "placeholder": "JSON",
+            "tooltip": "RAW: expose only metadata columns + _value_raw. JSON: additionally infer top-level field types by sampling recent messages."
+          },
+          {
+            "propName": "config.sampleRecordsForSchema",
+            "label": "Schema Sample Records",
+            "type": "number",
+            "tooltip": "Number of recent messages to sample per partition for JSON schema inference. Default: 100."
+          },
+          {
+            "propName": "config.schemaRegistryUrl",
+            "label": "Schema Registry URL",
+            "placeholder": "e.g. https://psrc-abc123.us-east-1.aws.confluent.cloud",
+            "tooltip": "Confluent-compatible Schema Registry URL. Supports http:// and https://. Required when Schema Mode is AVRO. Leave blank for RAW or JSON modes."
+          },
+          {
+            "propName": "config.schemaRegistryUsername",
+            "label": "Schema Registry Username",
+            "tooltip": "Username for HTTP Basic authentication against the Schema Registry. For Confluent Cloud, use the Schema Registry API key. Leave blank for unauthenticated registries."
+          },
+          {
+            "propName": "config.schemaRegistryPassword",
+            "label": "Schema Registry Password",
+            "type": "password",
+            "tooltip": "Password for Schema Registry Basic authentication. For Confluent Cloud, use the Schema Registry API secret."
+          },
+          {
+            "propName": "config.schemaRegistryDisableSslVerification",
+            "label": "Disable Schema Registry SSL Hostname Verification",
+            "type": "checkbox",
+            "tooltip": "Disable TLS certificate and hostname verification for Schema Registry HTTPS connections. Use only for self-signed certificates in non-production environments."
+          }
+        ]
+      },
+      {
+        "name": "Scan Window",
+        "elements": [
+          {
+            "propName": "config.defaultMaxRecordsPerPartition",
+            "label": "Default Max Records Per Partition",
+            "type": "number",
+            "tooltip": "Maximum records to return per partition in a plain SELECT * scan. Seeks to (latestOffset - N) to bound scans on high-volume topics. Set to 0 to read from the earliest offset. Default: 10000."
+          }
+        ]
+      },
+      {
+        "name": "Topic Filtering",
+        "elements": [
+          {
+            "propName": "config.topicExcludePattern",
+            "label": "Topic Exclude Pattern (regex)",
+            "placeholder": "^__",
+            "tooltip": "Java regex for topics to hide from Dremio. Default: '^__' hides all internal Kafka topics. Example: '^(__|\\.confluent)' to also hide Confluent internal topics."
+          },
+          {
+            "propName": "config.topicIncludePattern",
+            "label": "Topic Include Pattern (regex)",
+            "placeholder": "Leave blank to include all",
+            "tooltip": "Optional Java regex. When set, only matching topics appear in Dremio. Example: '^(orders|customers)' to show only specific topics."
+          }
+        ]
+      },
+      {
+        "name": "Security",
+        "elements": [
+          {
+            "propName": "config.securityProtocol",
+            "label": "Security Protocol",
+            "placeholder": "PLAINTEXT",
+            "tooltip": "Kafka security protocol: PLAINTEXT (no auth/encryption), SSL (TLS only), SASL_PLAINTEXT (SASL, no TLS), SASL_SSL (SASL + TLS, recommended for production)."
+          },
+          {
+            "propName": "config.saslMechanism",
+            "label": "SASL Mechanism",
+            "placeholder": "e.g. PLAIN, SCRAM-SHA-256, SCRAM-SHA-512",
+            "tooltip": "SASL authentication mechanism. Required when Security Protocol is SASL_PLAINTEXT or SASL_SSL."
+          },
+          {
+            "propName": "config.saslUsername",
+            "label": "SASL Username",
+            "tooltip": "SASL username for PLAIN or SCRAM authentication."
+          },
+          {
+            "propName": "config.saslPassword",
+            "label": "SASL Password",
+            "type": "password",
+            "tooltip": "SASL password for PLAIN or SCRAM authentication."
+          }
+        ]
+      },
+      {
+        "name": "SSL / TLS",
+        "elements": [
+          {
+            "propName": "config.sslTruststorePath",
+            "label": "SSL Truststore Path",
+            "placeholder": "e.g. /etc/dremio/certs/kafka-truststore.jks",
+            "tooltip": "Path to a JKS or PKCS12 truststore used to verify the Kafka broker certificate. Leave blank to use the JVM default trust store."
+          },
+          {
+            "propName": "config.sslTruststorePassword",
+            "label": "SSL Truststore Password",
+            "type": "password",
+            "tooltip": "Password for the truststore file."
+          },
+          {
+            "propName": "config.sslTruststoreType",
+            "label": "SSL Truststore Type",
+            "placeholder": "JKS",
+            "tooltip": "Truststore file format: JKS or PKCS12. Default: JKS."
+          },
+          {
+            "propName": "config.sslKeystorePath",
+            "label": "SSL Keystore Path",
+            "placeholder": "e.g. /etc/dremio/certs/kafka-keystore.jks",
+            "tooltip": "Path to a JKS or PKCS12 keystore containing the client private key and certificate. Only required for mutual TLS (mTLS) where the broker demands client authentication."
+          },
+          {
+            "propName": "config.sslKeystorePassword",
+            "label": "SSL Keystore Password",
+            "type": "password",
+            "tooltip": "Password for the keystore file."
+          },
+          {
+            "propName": "config.sslKeystoreType",
+            "label": "SSL Keystore Type",
+            "placeholder": "JKS",
+            "tooltip": "Keystore file format: JKS or PKCS12. Default: JKS."
+          },
+          {
+            "propName": "config.sslDisableHostnameVerification",
+            "label": "Disable SSL Hostname Verification",
+            "type": "checkbox",
+            "tooltip": "Disable TLS hostname verification. Useful for self-signed certificates where the CN/SAN does not match the broker hostname. Do not enable in production."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.maxPollRecords",
+            "label": "Max Poll Records",
+            "type": "number",
+            "tooltip": "Maximum number of records per Kafka consumer poll() call. Controls memory vs. throughput. Default: 500."
+          },
+          {
+            "propName": "config.requestTimeoutMs",
+            "label": "Request Timeout (ms)",
+            "type": "number",
+            "tooltip": "Kafka consumer request timeout in milliseconds. Default: 30000."
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Metadata Cache TTL (seconds)",
+            "type": "number",
+            "tooltip": "How long to cache topic schemas and partition metadata locally. Default: 60 seconds. Set to 0 to always fetch fresh."
+          }
+        ]
+      }
+    ]
+  }
+}

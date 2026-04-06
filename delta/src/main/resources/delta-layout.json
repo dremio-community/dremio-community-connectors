@@ -1,0 +1,88 @@
+{
+  "sourceType": "DELTA",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan the root path for new Delta tables"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.rootPath",
+            "size": "FULL",
+            "label": "Root Path",
+            "placeholder": "e.g. s3://my-bucket/delta-tables or /mnt/datalake/delta",
+            "errMsg": "A root path is required"
+          }
+        ]
+      },
+      {
+        "name": "Delta Write Settings",
+        "elements": [
+          {
+            "propName": "config.compressionCodec",
+            "type": "radio",
+            "label": "Compression Codec",
+            "options": [
+              { "label": "Snappy  (recommended — best size/speed balance)", "value": "SNAPPY" },
+              { "label": "Zstd    (better compression, slightly slower)", "value": "ZSTD" },
+              { "label": "Gzip    (smallest files, slowest writes)", "value": "GZIP" },
+              { "label": "None    (no compression)", "value": "UNCOMPRESSED" }
+            ]
+          },
+          {
+            "propName": "config.defaultPartitionColumn",
+            "label": "Default Partition Column (optional)",
+            "placeholder": "Leave empty for non-partitioned tables",
+            "tooltip": "Column used to partition new tables created via CTAS"
+          },
+          {
+            "propName": "config.allowSchemaEvolution",
+            "label": "Allow Schema Evolution on Write",
+            "tooltip": "When enabled, INSERT with extra columns will update the Delta schema automatically"
+          }
+        ]
+      },
+      {
+        "name": "Performance",
+        "elements": [
+          {
+            "propName": "config.targetFileSizeBytes",
+            "label": "Target File Size (bytes)",
+            "type": "number",
+            "tooltip": "Target Parquet file size per write. Default 134217728 = 128 MB."
+          },
+          {
+            "propName": "config.writeBufferMaxRows",
+            "label": "Write Buffer Rows (per thread)",
+            "type": "number",
+            "tooltip": "Rows buffered per writer thread before flushing to Parquet. Reduce for very wide rows."
+          },
+          {
+            "propName": "config.readBatchSize",
+            "label": "Read Batch Size (rows per Arrow batch)",
+            "type": "number",
+            "tooltip": "Rows returned per Arrow batch during SELECT. Default 4096 matches Dremio's standard batch size."
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Snapshot Cache TTL (seconds, 0=disabled)",
+            "type": "number",
+            "tooltip": "Seconds to cache the active file list per table. Uses version-check + TTL strategy. Connector writes always invalidate the cache immediately."
+          }
+        ]
+      },
+      {
+        "name": "Connection Properties",
+        "elements": [
+          {
+            "propName": "config.propertyList",
+            "label": "Additional Connection Properties",
+            "type": "property_list"
+          }
+        ]
+      }
+    ]
+  }
+}

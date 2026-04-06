@@ -1,0 +1,32 @@
+Dremio ClickHouse Connector
+Community connector — Apache License 2.0
+
+This product includes the following third-party software:
+
+────────────────────────────────────────────────────────────
+ClickHouse JDBC Driver
+  Artifact:  com.clickhouse:clickhouse-jdbc:0.4.6 (all classifier)
+  License:   Apache License 2.0
+  Source:    https://github.com/ClickHouse/clickhouse-java
+  Maven:     https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/
+
+  Note: The JAR included in the jars/ directory of this distribution is the
+  official Maven Central artifact with one modification: the file
+  META-INF/services/java.sql.Driver has been removed. This prevents Java's
+  ServiceLoader from auto-registering the driver during JVM startup, which
+  causes a class-initialization race condition in Dremio's DBCP2 connection
+  pool. No source code, compiled classes, or other content has been altered.
+  The original unmodified JAR can be obtained from Maven Central at the URL
+  above. The installer's --driver-fetch option will download and apply this
+  same patch transparently at install time if you prefer not to use the
+  pre-patched JAR.
+
+────────────────────────────────────────────────────────────
+Dremio ARP (Advanced Relational Pushdown) Framework
+  Artifact:  com.dremio.plugins:dremio-ce-jdbc-plugin (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  Note: Dremio ARP JARs are used at compile time only and are not bundled
+  in the connector distribution. They must be present in the target Dremio
+  installation.

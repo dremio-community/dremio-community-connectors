@@ -1,0 +1,403 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.dremio.plugins</groupId>
+  <artifactId>dremio-cassandra-connector</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Dremio Apache Cassandra Connector</name>
+  <description>
+    A Dremio storage plugin that adds native read support for Apache Cassandra tables.
+    Implements Dremio's ConnectionConf + StoragePlugin interfaces and uses the DataStax
+    Java Driver 4.x (no Spark required) to query Cassandra via CQL.
+  </description>
+
+  <developers>
+    <developer>
+      <id>mshainman</id>
+      <name>Mark Shainman</name>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+    </developer>
+  </developers>
+
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      IMPORTANT: Must match the EXACT version of Dremio running in your cluster.
+      Verify by checking JAR filenames in $DREMIO_HOME/jars/.
+      These JARs are not on Maven Central — install them first via install.sh.
+    -->
+    <dremio.version>26.0.5-202509091642240013-f5051a07</dremio.version>
+
+    <!--
+      Arrow version must match Dremio's internal Arrow version exactly.
+      Check $DREMIO_HOME/jars/3rdparty/arrow-vector-*.jar for the exact version.
+    -->
+    <arrow.version>18.1.1-20250709131625-66bbaf1fd7-dremio</arrow.version>
+
+    <!--
+      DataStax Java Driver 4.x — pure Java, no Spark.
+      Uses CQL native protocol for all Cassandra communication.
+    -->
+    <datastax.version>4.17.0</datastax.version>
+
+    <!--
+      Calcite version used by Dremio's planning layer.
+      Must match Dremio's bundled Calcite version exactly.
+      Check $DREMIO_HOME/jars/3rdparty/calcite-core-*.jar.
+    -->
+    <calcite.version>1.22.0-202501311721330426-8b30dab9</calcite.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>dremio-public</id>
+      <name>Dremio Public Maven Repository</name>
+      <url>https://maven.dremio.com/public/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <dependencies>
+
+    <!-- ================================================================
+         DREMIO PLUGIN API (provided — Dremio supplies at runtime)
+         ================================================================ -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Proto-generated classes (CoreOperatorType etc.) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel-proto</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- BatchSchema, VectorAccessible, etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-vector-tools</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- AbstractConnectionConf, ConnectionConf -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- StoragePlugin, DatasetHandle, PartitionChunk, etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-plugin-common: FileSystemConf, SchemaMutability, etc. -->
+    <dependency>
+      <groupId>com.dremio.plugin</groupId>
+      <artifactId>dremio-plugin-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-sabot-logical: ExecutionSetupException, etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-logical</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-common-core: Wrapper, common interfaces -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common-core</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-services-credentials: CredentialsException, used transitively by ConnectionConf -->
+    <dependency>
+      <groupId>com.dremio.services</groupId>
+      <artifactId>dremio-services-credentials</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-services-datastore: Serializer and related, used transitively by StoragePlugin -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-datastore</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- @Tag, @DisplayMetadata, @SourceType annotations -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-core</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-runtime</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Arrow vectors (provided by Dremio) -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-vector</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-memory-core</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- SLF4J (provided by Dremio) -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.36</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Calcite planning classes (provided by Dremio's sabot-kernel transitively).
+         Must be declared explicitly here since we install kernel JARs via
+         install:install-file (without POM), so Maven cannot resolve transitives. -->
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-core</artifactId>
+      <version>${calcite.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-linq4j</artifactId>
+      <version>${calcite.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- javax.inject: @Inject, Provider — used by ConnectionConf.newPlugin() signature -->
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Jackson (provided by Dremio) -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.15.3</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.15.3</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Guava (provided by Dremio) -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.4.0-jre</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         DATASTAX JAVA DRIVER 4.x — bundled in the fat JAR.
+         No Spark required. Uses CQL native protocol.
+         ================================================================ -->
+    <dependency>
+      <groupId>com.datastax.oss</groupId>
+      <artifactId>java-driver-core</artifactId>
+      <version>${datastax.version}</version>
+      <exclusions>
+        <!-- Provided by Dremio -->
+        <exclusion>
+          <groupId>com.google.guava</groupId>
+          <artifactId>guava</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-databind</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>com.fasterxml.jackson.core</groupId>
+          <artifactId>jackson-annotations</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- ================================================================
+         TEST
+         ================================================================ -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.5.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.36</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>plugin</shadedClassifierName>
+              <relocations>
+                <!--
+                  Relocate the DataStax driver to avoid classpath conflicts with any
+                  other Cassandra or DataStax libraries that might be on Dremio's path.
+                  Our own code references the original package names at compile time;
+                  maven-shade rewrites both the library classes AND all references in
+                  our code automatically.
+                -->
+                <relocation>
+                  <pattern>com.datastax.oss.driver</pattern>
+                  <shadedPattern>shaded.com.datastax.oss.driver</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.datastax.dse.driver</pattern>
+                  <shadedPattern>shaded.com.datastax.dse.driver</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.datastax.oss.protocol</pattern>
+                  <shadedPattern>shaded.com.datastax.oss.protocol</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>shaded.io.netty</shadedPattern>
+                </relocation>
+              </relocations>
+              <filters>
+                <!-- Strip JAR signing files that would invalidate the shaded JAR -->
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+                <!-- Exclude all Jackson JARs:
+                     - jackson-annotations: prevents NPE in FormatPluginOptionsDescriptor
+                       (Dremio's plugin classloader must resolve annotation classes from
+                       the parent, not the plugin JAR)
+                     - jackson-core and jackson-databind: Dremio provides these at runtime;
+                       jackson-core 2.18+ contains Java 22 multi-release bytecode (major
+                       version 66) that maven-shade-plugin 3.5.0 (running on Java 11) cannot
+                       process, causing "Unsupported class file major version 66" errors -->
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-core</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-databind</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <!-- Exclude SLF4J StaticLoggerBinder to avoid overriding Dremio's
+                     logback setup via plugin classloader child-first delegation -->
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>org/slf4j/impl/StaticLoggerBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMDCBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMarkerBinder.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <argLine>
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.io=ALL-UNNAMED
+            -Dnet.bytebuddy.experimental=true
+          </argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

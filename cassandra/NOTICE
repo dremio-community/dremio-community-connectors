@@ -1,0 +1,25 @@
+Dremio Apache Cassandra Connector
+Community connector — Apache License 2.0
+
+This product includes the following third-party software:
+
+────────────────────────────────────────────────────────────
+DataStax Java Driver for Apache Cassandra
+  Artifact:  com.datastax.oss:java-driver-core
+  License:   Apache License 2.0
+  Source:    https://github.com/datastax/java-driver
+
+────────────────────────────────────────────────────────────
+Apache Cassandra
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/cassandra
+
+────────────────────────────────────────────────────────────
+Dremio Sabot Kernel and Plugin API
+  Artifact:  com.dremio:dremio-sabot-kernel (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  Note: Dremio JARs are used at compile time only and are not bundled
+  in the connector distribution. They must be present in the target
+  Dremio installation.

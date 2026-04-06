@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.dremio.plugins</groupId>
+  <artifactId>dremio-delta-connector</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Dremio Delta Lake Connector</name>
+  <description>
+    A Dremio storage plugin that adds write support for Delta Lake tables.
+    Dremio can read Delta tables natively, but this connector adds
+    INSERT INTO, CTAS, DELETE FROM, and MERGE INTO support by implementing
+    Dremio's internal plugin interfaces and wiring them to:
+      - delta-standalone (no Spark): Delta transaction log management
+      - parquet-avro: Arrow -> Avro -> Parquet file writing
+  </description>
+
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      Match to your deployed Dremio version exactly.
+      Build dremio-oss locally if the version is not on maven.dremio.com:
+        git clone https://github.com/dremio/dremio-oss
+        git checkout tags/26.1.5
+        mvn install -DskipTests -Dlicense.skip=true
+    -->
+    <dremio.version>26.0.5-202509091642240013-f5051a07</dremio.version>
+
+    <!--
+      delta-standalone: pure-Java Delta Lake transaction log library.
+      Requires Scala 2.12 runtime (bundled in the fat JAR).
+      Provides DeltaLog, OptimisticTransaction, AddFile, Metadata, etc.
+      Does NOT require Apache Spark.
+    -->
+    <delta.standalone.version>0.6.0</delta.standalone.version>
+    <scala.compat.version>2.12</scala.compat.version>
+
+    <!-- Avro: used as an intermediate format for Arrow -> Parquet conversion -->
+    <avro.version>1.11.3</avro.version>
+
+    <!-- Parquet: AvroParquetWriter writes Avro GenericRecords to Parquet files -->
+    <parquet.version>1.13.1</parquet.version>
+
+    <!--
+      Arrow must match Dremio's internal version exactly.
+      Dremio 26.x ships with Arrow 15.0.x. Verify via:
+        ls $DREMIO_HOME/jars/arrow-vector-*.jar
+    -->
+    <arrow.version>18.1.1-20250709131625-66bbaf1fd7-dremio</arrow.version>
+
+    <!-- Hadoop version must match Dremio's patched Hadoop exactly -->
+    <hadoop.version>3.3.6-dremio-202507241551560856-75923ad5</hadoop.version>
+  </properties>
+
+  <developers>
+    <developer>
+      <id>mshainman</id>
+      <name>Mark Shainman</name>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+    </developer>
+  </developers>
+
+  <repositories>
+    <repository>
+      <id>dremio-public</id>
+      <name>Dremio Public Maven Repository</name>
+      <url>https://maven.dremio.com/public/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <dependencies>
+
+    <!-- ================================================================
+         DREMIO PLUGIN API  (provided at runtime by Dremio)
+         ================================================================ -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Proto-generated classes (UserBitShared.CoreOperatorType etc.) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel-proto</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- DFS plugin utilities (FileSystemConf, SchemaMutability, etc.) -->
+    <dependency>
+      <groupId>com.dremio.plugin</groupId>
+      <artifactId>dremio-plugin-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- BatchSchema, VectorAccessible, VectorWrapper live here -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-vector-tools</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- AbstractConnectionConf (FileSystemConf supertype) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- SourceMetadata interface (StoragePlugin hierarchy) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Protostuff: @Tag annotation used in plugin config fields -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-core</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-runtime</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-sabot-logical: contains ExecutionSetupException, FormatPluginConfig etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-logical</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-common-core: contains Wrapper, common interfaces -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common-core</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-services-catalog: CatalogEntityNotFoundException etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-catalog</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         DELTA STANDALONE  (no Spark — pure Java/Scala transaction log)
+         Provides: DeltaLog, OptimisticTransaction, AddFile, RemoveFile,
+                   Metadata, Operation, StructType and schema types.
+         ================================================================ -->
+    <dependency>
+      <groupId>io.delta</groupId>
+      <artifactId>delta-standalone_${scala.compat.version}</artifactId>
+      <version>${delta.standalone.version}</version>
+      <exclusions>
+        <!-- Exclude Spark — we don't need it and it would bloat the JAR -->
+        <exclusion>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <!-- Exclude Hadoop MR to avoid conflicts with Dremio's Hadoop -->
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- ================================================================
+         AVRO  (intermediate format for Arrow -> Parquet conversion)
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
+    <!-- ================================================================
+         PARQUET  (write Parquet data files via AvroParquetWriter)
+         parquet-avro bridges Avro GenericRecord -> Parquet column format.
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-avro</artifactId>
+      <version>${parquet.version}</version>
+      <exclusions>
+        <!-- avro is already declared above -->
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-hadoop</artifactId>
+      <version>${parquet.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Hadoop Common: FileSystem, FileStatus, Path, Configuration (provided by Dremio) -->
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Guava: transitive dep of FileSystemPlugin (LoadingCache etc., provided by Dremio) -->
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.4.0-jre</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- javax.inject: Provider<T> used in plugin constructor (provided by Dremio) -->
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         APACHE ARROW  (Dremio's in-process columnar format, provided)
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-vector</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- arrow-memory-core: provides OutOfMemoryException referenced by Dremio's
+         RecordReader.allocate() interface. Must be declared explicitly because
+         install:install-file does not carry transitive dependencies. -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-memory-core</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Protobuf: transitive dep of EasyProtobuf types used in getRecordReader()
+         (provided by Dremio at runtime) -->
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>3.25.5</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         LOGGING
+         ================================================================ -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.36</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         TEST
+         ================================================================ -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.5.0</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <!--
+    test-only profile: compiles and tests only the pure Arrow/Delta utility classes
+    (ArrowToDeltaSchemaConverter, ArrowToAvroConverter) without needing the Dremio JARs installed.
+
+    Usage: mvn test -P test-only
+    (after running the stub-install commands in the README)
+  -->
+  <profiles>
+    <profile>
+      <id>test-only</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+            <configuration>
+              <!-- Exclude all classes that import Dremio types. -->
+              <excludes>
+                <exclude>com/dremio/plugins/delta/DeltaStoragePlugin.java</exclude>
+                <exclude>com/dremio/plugins/delta/conf/DeltaPluginConfig.java</exclude>
+                <exclude>com/dremio/plugins/delta/format/DeltaFormatPlugin.java</exclude>
+                <exclude>com/dremio/plugins/delta/format/DeltaFormatMatcher.java</exclude>
+                <exclude>com/dremio/plugins/delta/format/DeltaFormatPluginConfig.java</exclude>
+                <exclude>com/dremio/plugins/delta/write/DeltaRecordWriter.java</exclude>
+                <exclude>com/dremio/plugins/delta/read/DeltaSnapshotUtils.java</exclude>
+                <exclude>com/dremio/plugins/delta/read/DeltaParquetRecordReader.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+  <build>
+    <plugins>
+      <!-- Exclude read utilities from main compile: DeltaSnapshotUtils uses
+           delta-standalone 0.6.0 internal APIs (Scan type, CloseableIterator
+           vs Iterator for getChanges()) that require deeper adaptation.
+           The write path works without them; read support will be adapted in
+           a future iteration. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <excludes>
+            <exclude>com/dremio/plugins/delta/read/DeltaSnapshotUtils.java</exclude>
+          </excludes>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>plugin</shadedClassifierName>
+              <relocations>
+                <!--
+                  Jackson MUST be relocated: delta-standalone bundles its own
+                  Jackson for Delta log JSON serialization. At runtime Dremio
+                  has its own Jackson on the classpath; without relocation the
+                  wrong version is loaded, causing MismatchedInputException when
+                  delta-standalone tries to parse log files.
+
+                  Avro is NOT relocated: Dremio's Avro 1.11.x is compatible
+                  with ours, and relocating it causes NoSuchMethodError when
+                  Parquet's AvroSchemaConverter receives a shaded Schema type.
+
+                  Parquet is NOT relocated: parquet-hadoop is provided by Dremio
+                  and must be found at runtime under org.apache.parquet.
+                  Relocating renames bytecode references to a package that does
+                  not exist in the JAR, causing ClassNotFoundException.
+                -->
+                <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>com.dremio.plugins.delta.shaded.jackson</shadedPattern>
+                  <excludes>
+                    <!--
+                      Do NOT relocate jackson-annotations (com.fasterxml.jackson.annotation.*).
+                      These are used on our own config classes (e.g. @JsonTypeName on
+                      DeltaFormatPluginConfig). At startup, Dremio's FormatPluginOptionExtractor
+                      looks up @JsonTypeName using the runtime Jackson class object — if the
+                      annotation in the bytecode is on the shaded package, getAnnotation()
+                      returns null and .value() throws NPE, crashing all FileSystemPlugin sources.
+
+                      Jackson core and databind ARE relocated: delta-standalone uses those
+                      for Delta log JSON serialization, and at runtime Dremio's Jackson
+                      (a different version) is on the classpath first. Without relocation
+                      the wrong Jackson version is used, causing MismatchedInputException.
+
+                      The annotation package is version-agnostic and safe to share with
+                      Dremio's runtime. Core and databind must be isolated.
+                    -->
+                    <exclude>com/fasterxml/jackson/annotation/**</exclude>
+                  </excludes>
+                </relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+                <!--
+                  Exclude jackson-annotations class files from the fat JAR.
+                  The <relocation> above already prevents annotation-package
+                  references from being rewritten (via the annotation/** exclude),
+                  but the class files themselves are still bundled. If bundled,
+                  the plugin classloader (child-first) loads the older bundled
+                  version first, making JsonTypeName a different class than the
+                  one Dremio's FormatPluginOptionsDescriptor uses, causing
+                  getAnnotation() to return null and crashing startup.
+                  Excluding the class files here lets the plugin classloader
+                  delegate to Dremio's parent classloader for annotation types.
+                  delta-standalone's relocated jackson-databind still resolves
+                  annotation types from the parent classloader (Dremio 2.15.3)
+                  which is fully backwards-compatible.
+                -->
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
+                  <excludes>
+                    <exclude>**</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <argLine>
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.io=ALL-UNNAMED
+            -Dnet.bytebuddy.experimental=true
+          </argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

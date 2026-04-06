@@ -1,0 +1,513 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.dremio.plugins</groupId>
+  <artifactId>dremio-hudi-connector</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Dremio Hudi Connector</name>
+  <description>
+    A Dremio storage plugin that adds read AND write support for Apache Hudi tables.
+    Extends FileSystemPlugin with a custom HudiFormatPlugin and HudiRecordWriter
+    that translates Dremio's Arrow-based write path into HoodieJavaWriteClient calls.
+  </description>
+
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      IMPORTANT: Set this to match the EXACT version of Dremio running in your cluster.
+      Current Dremio Software release: 26.x (26.0.5 verified as of April 2026).
+
+      Dremio does NOT publish dremio-sabot-kernel to Maven Central.
+      You must build the OSS artifacts locally first:
+
+        git clone https://github.com/dremio/dremio-oss
+        cd dremio-oss
+        git checkout tags/26.0.5   # or your deployed version tag
+        mvn install -DskipTests -Dlicense.skip=true
+
+      This installs artifacts to ~/.m2/repository/com/dremio/...
+      so Maven can find them when you build this connector.
+
+      Alternatively, add the Dremio Maven repo (see <repositories> below).
+      The repo at https://maven.dremio.com/public/ carries some OSS versions
+      but is not always up to date for latest releases.
+    -->
+    <dremio.version>26.0.5-202509091642240013-f5051a07</dremio.version>
+
+    <!--
+      Hudi Java client - no Spark required.
+      hudi-java-client uses HoodieJavaEngineContext and HoodieJavaWriteClient.
+      Pin to a version that matches your cluster's Hudi version if data already exists.
+    -->
+    <hudi.version>0.15.0</hudi.version>
+
+    <!-- Avro is required by Hudi's record schema layer -->
+    <avro.version>1.11.3</avro.version>
+
+    <!--
+      Arrow version must match Dremio's internal Arrow version exactly.
+      Dremio 26.x ships with Arrow 15.0.x. Verify by checking:
+        $DREMIO_HOME/jars/ for arrow-vector-*.jar
+      or the dremio-oss pom.xml at your version tag on GitHub.
+    -->
+    <arrow.version>18.1.1-20250709131625-66bbaf1fd7-dremio</arrow.version>
+  </properties>
+
+  <!--
+    Dremio publishes OSS artifacts to their own Maven repository.
+    Add this so Maven can resolve dremio-sabot-kernel etc. directly
+    without requiring a local build of dremio-oss.
+    Note: not all versions are published here - a local build is
+    more reliable for cutting-edge releases.
+  -->
+  <developers>
+    <developer>
+      <id>mshainman</id>
+      <name>Mark Shainman</name>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+    </developer>
+  </developers>
+
+  <repositories>
+    <repository>
+      <id>dremio-public</id>
+      <name>Dremio Public Maven Repository</name>
+      <url>https://maven.dremio.com/public/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <dependencies>
+
+    <!-- ================================================================
+         DREMIO PLUGIN API
+         These are the interfaces your plugin must implement.
+         Scope = provided because Dremio supplies them at runtime.
+         ================================================================ -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Proto-generated classes (UserBitShared.CoreOperatorType etc.) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel-proto</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- DFS plugin utilities (FileSystemConf, SchemaMutability, etc.) -->
+    <dependency>
+      <groupId>com.dremio.plugin</groupId>
+      <artifactId>dremio-plugin-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- BatchSchema, VectorAccessible, VectorWrapper live here -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-vector-tools</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- AbstractConnectionConf (FileSystemConf supertype) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- SourceMetadata interface (StoragePlugin hierarchy) -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- Protostuff: @Tag annotation used in plugin config fields -->
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-core</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-runtime</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-sabot-logical: contains ExecutionSetupException, FormatPluginConfig etc. -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-logical</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-common-core: contains Wrapper, common interfaces -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common-core</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- dremio-services-catalog: CatalogEntityNotFoundException etc.
+         pulled in transitively by FileSystemPlugin method signatures -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-services-catalog</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- typesafe-config: transitive dep of Hudi's HoodieWriteConfig (provided by Dremio) -->
+    <dependency>
+      <groupId>com.typesafe</groupId>
+      <artifactId>config</artifactId>
+      <version>1.4.3</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         HUDI JAVA CLIENT (no Spark)
+         HoodieJavaWriteClient + HoodieJavaEngineContext give us a
+         pure-Java write path that works inside Dremio's JVM.
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.hudi</groupId>
+      <artifactId>hudi-java-client</artifactId>
+      <version>${hudi.version}</version>
+      <exclusions>
+        <!-- Exclude Spark to keep the plugin lightweight -->
+        <exclusion>
+          <groupId>org.apache.spark</groupId>
+          <artifactId>*</artifactId>
+        </exclusion>
+        <!-- Exclude Hadoop MR to avoid conflicts with Dremio's Hadoop -->
+        <exclusion>
+          <groupId>org.apache.hadoop</groupId>
+          <artifactId>hadoop-mapreduce-client-core</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <!-- Hudi common - HoodieRecord, HoodieKey, schema utilities -->
+    <dependency>
+      <groupId>org.apache.hudi</groupId>
+      <artifactId>hudi-common</artifactId>
+      <version>${hudi.version}</version>
+    </dependency>
+
+    <!-- ================================================================
+         AVRO - Hudi's record format uses Avro GenericRecord internally
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.avro</groupId>
+      <artifactId>avro</artifactId>
+      <version>${avro.version}</version>
+    </dependency>
+
+    <!-- ================================================================
+         PARQUET-AVRO - used by HudiParquetRecordReader to read Hudi COW
+         base files (standard Parquet) via AvroParquetReader.
+         parquet-hadoop is provided by Dremio; parquet-avro is bundled.
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-avro</artifactId>
+      <version>1.13.1</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.parquet</groupId>
+      <artifactId>parquet-hadoop</artifactId>
+      <version>1.13.1</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         APACHE ARROW - Dremio's in-process columnar format
+         We use Arrow VectorSchemaRoot to read records from Dremio's
+         write pipeline and convert them to Hudi HoodieAvroRecords.
+         ================================================================ -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-vector</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- arrow-memory-core: provides OutOfMemoryException referenced by Dremio's
+         RecordReader.allocate() interface declaration. Must be declared explicitly
+         because install:install-file (used in build-and-deploy.sh) does not carry
+         transitive dependencies — so Maven doesn't pull it in automatically. -->
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-memory-core</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         KRYO - needed at compile time: HoodieAvroRecordMerger (and
+         HoodieRecord) implement KryoSerializable. Provided at runtime
+         by hudi-java-client's transitive deps.
+         ================================================================ -->
+    <dependency>
+      <groupId>com.esotericsoftware</groupId>
+      <artifactId>kryo-shaded</artifactId>
+      <version>4.0.3</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         LOGGING
+         ================================================================ -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.7.36</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         TEST
+         ================================================================ -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <version>5.5.0</version>
+      <scope>test</scope>
+    </dependency>
+
+    <!--
+      SLF4J simple binding for test scope.
+      Without this, Hudi's internal logging emits "SLF4J: Failed to load class
+      StaticLoggerBinder" warnings when running HudiMORTestDataGenerator or
+      other standalone test utilities that invoke Hudi client code directly.
+    -->
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.36</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <!--
+    test-only profile: compiles and tests only the pure Arrow/Avro utility classes
+    (ArrowToAvroConverter) without needing the Dremio JARs installed locally.
+
+    Usage: mvn test -P test-only
+    (after running the stub-install commands in the README)
+  -->
+  <profiles>
+    <profile>
+      <id>test-only</id>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
+            <configuration>
+              <!-- Exclude all classes that import Dremio types.
+                   ArrowToAvroConverter has no Dremio imports and compiles cleanly. -->
+              <excludes>
+                <exclude>com/dremio/plugins/hudi/HudiStoragePlugin.java</exclude>
+                <exclude>com/dremio/plugins/hudi/conf/HudiPluginConfig.java</exclude>
+                <exclude>com/dremio/plugins/hudi/format/HudiFormatPlugin.java</exclude>
+                <exclude>com/dremio/plugins/hudi/format/HudiFormatPluginConfig.java</exclude>
+                <exclude>com/dremio/plugins/hudi/format/HudiFormatMatcher.java</exclude>
+                <exclude>com/dremio/plugins/hudi/write/HudiRecordWriter.java</exclude>
+                <exclude>com/dremio/plugins/hudi/read/HudiParquetRecordReader.java</exclude>
+                <exclude>com/dremio/plugins/hudi/read/HudiSnapshotUtils.java</exclude>
+                <exclude>com/dremio/plugins/hudi/read/HudiMORRecordReader.java</exclude>
+              </excludes>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <!--
+                Bundle Hudi and Avro into one fat JAR so Dremio
+                can load the plugin without classpath conflicts.
+                Dremio-provided deps (Arrow, sabot-kernel) are excluded
+                via their 'provided' scope above.
+              -->
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>plugin</shadedClassifierName>
+              <relocations>
+                <!--
+                  Avro is intentionally NOT relocated here.
+                  Dremio bundles Avro 1.11.x which is compatible with our 1.11.3.
+                  Relocating Avro causes NoSuchMethodError when Parquet's
+                  AvroSchemaConverter (provided by Dremio) receives a shaded
+                  Schema type instead of org.apache.avro.Schema.
+                -->
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+                <!--
+                  Exclude jackson-annotations from the fat JAR entirely.
+                  Dremio provides jackson-annotations-2.15.3 at runtime via its
+                  parent classloader. If we bundle an older version (e.g. 2.10.0
+                  from Hudi's transitive deps) in the plugin JAR, the plugin
+                  classloader loads it first (child-first delegation), making
+                  com.fasterxml.jackson.annotation.JsonTypeName a DIFFERENT class
+                  than the one Dremio's FormatPluginOptionsDescriptor passes to
+                  getAnnotation(). That makes getAnnotation() return null, and
+                  typeName.toLowerCase() throws NPE, crashing all FileSystemPlugin
+                  sources on startup (exit code 4).
+                  Excluding here lets the plugin classloader delegate to Dremio's
+                  parent classloader for annotation classes, which resolves to the
+                  same class object → getAnnotation() works correctly.
+                -->
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
+                  <excludes>
+                    <exclude>**</exclude>
+                  </excludes>
+                </filter>
+                <!--
+                  Exclude SLF4J binding and Logback from the fat JAR.
+                  Dremio owns the logging framework. If we bundle an SLF4J
+                  StaticLoggerBinder (from Hudi's transitive deps) the plugin
+                  classloader picks it up first (child-first delegation), overriding
+                  Dremio's logback setup and causing classloader state corruption
+                  that can prevent classes within the same JAR from loading.
+                -->
+                <filter>
+                  <artifact>org.slf4j:slf4j-log4j12</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>org.slf4j:slf4j-simple</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>ch.qos.logback:logback-classic</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>ch.qos.logback:logback-core</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>org/slf4j/impl/StaticLoggerBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMDCBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMarkerBinder.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!--
+        exec-maven-plugin: used to run HudiMORTestDataGenerator from the command line.
+        Run the test data generator with:
+          mvn test-compile exec:java \
+            -Dexec.classpathScope=test \
+            -Dexec.mainClass=com.dremio.plugins.hudi.test.HudiMORTestDataGenerator
+        Optionally pass a custom output path:
+            "-Dexec.args=/path/to/output"
+      -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <!-- Required for Mockito inline mocking on Java 16+.
+               Mockito's byte-buddy must instrument JDK interfaces
+               (Closeable, AutoCloseable, Iterable) that Arrow's
+               ValueVector extends. -->
+          <argLine>
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.io=ALL-UNNAMED
+            -Dnet.bytebuddy.experimental=true
+          </argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

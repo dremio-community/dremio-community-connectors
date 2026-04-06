@@ -1,0 +1,99 @@
+{
+  "sourceType": "HUDI",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan the root path for new Hudi tables"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.rootPath",
+            "size": "FULL",
+            "label": "Root Path",
+            "placeholder": "e.g. s3://my-bucket/hudi-tables or hdfs:///data/hudi",
+            "errMsg": "A root path is required"
+          }
+        ]
+      },
+      {
+        "name": "Hudi Write Settings",
+        "elements": [
+          {
+            "propName": "config.defaultTableType",
+            "type": "radio",
+            "label": "Default Table Type (for new tables)",
+            "options": [
+              { "label": "Copy-on-Write (COW) - Best for read-heavy workloads", "value": "COPY_ON_WRITE" },
+              { "label": "Merge-on-Read (MOR) - Best for write-heavy / streaming", "value": "MERGE_ON_READ" }
+            ]
+          },
+          {
+            "propName": "config.defaultRecordKeyField",
+            "label": "Default Record Key Field",
+            "placeholder": "id",
+            "tooltip": "Column used as the unique record identifier for upserts"
+          },
+          {
+            "propName": "config.defaultPartitionPathField",
+            "label": "Default Partition Path Field (optional)",
+            "placeholder": "Leave empty for non-partitioned tables",
+            "tooltip": "Column whose value defines the Hudi partition path"
+          },
+          {
+            "propName": "config.defaultPrecombineField",
+            "label": "Default Precombine Field",
+            "placeholder": "ts",
+            "tooltip": "On upsert, the record with the highest value in this field wins"
+          }
+        ]
+      },
+      {
+        "name": "Performance",
+        "elements": [
+          {
+            "propName": "config.writeParallelism",
+            "label": "Write Parallelism (buckets)",
+            "type": "number",
+            "tooltip": "Number of parallel write buckets. Increase for large tables."
+          },
+          {
+            "propName": "config.targetFileSizeBytes",
+            "label": "Target File Size (bytes)",
+            "type": "number",
+            "tooltip": "Target Parquet base file size. Default 134217728 = 128MB."
+          },
+          {
+            "propName": "config.writeBufferMaxRows",
+            "label": "Write Buffer Rows (per thread)",
+            "type": "number",
+            "tooltip": "Rows buffered per writer thread before flushing to Hudi. Reduce for very wide rows."
+          },
+          {
+            "propName": "config.clusteringCommitInterval",
+            "label": "Auto-Compaction/Clustering Interval (commits, 0=disabled)",
+            "type": "number",
+            "tooltip": "Every N commits, triggers clustering (COW) or compaction (MOR). Set 0 to disable."
+          },
+          {
+            "propName": "config.readBatchSize",
+            "label": "Read Batch Size (rows per Arrow batch)",
+            "type": "number",
+            "tooltip": "Rows returned per Arrow batch during SELECT. Default 4096 matches Dremio's standard batch size."
+          }
+        ]
+      },
+      {
+        "name": "Connection Properties",
+        "elements": [
+          {
+            "propName": "config.propertyList",
+            "label": "Additional Connection Properties",
+            "type": "property_list"
+          }
+        ]
+      }
+    ]
+  }
+}
