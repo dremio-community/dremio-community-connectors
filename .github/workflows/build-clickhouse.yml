@@ -78,10 +78,14 @@ jobs:
           install_jar dremio-common
           install_jar dremio-sabot-kernel-proto
           install_jar dremio-sabot-vector-tools
-          install_jar dremio-protocol
+          install_jar dremio-services-namespace
           install_jar dremio-connector
           install_jar dremio-sabot-logical
           install_jar dremio-common-core
+          install_jar dremio-services-datastore
+          install_jar dremio-services-options
+          install_jar dremio-plugin-common        "com.dremio.plugin"
+          install_jar dremio-services-credentials "com.dremio.services"
 
           echo "Installing Dremio CE JDBC JARs..."
           install_jar_plugins dremio-ce-jdbc-plugin
@@ -98,20 +102,15 @@ jobs:
           echo "Dremio JAR installation complete."
 
       # ── 4. Install ClickHouse JDBC driver ────────────────────────────────────
+      # JARs are gitignored, so always download from Maven Central.
+      # curl is used directly — mvn dependency:get does not support -Ddest.
       - name: Install ClickHouse JDBC driver
         run: |
-          DRIVER_JAR=$(ls jars/clickhouse-jdbc-*.jar 2>/dev/null | head -1)
-          if [ -n "$DRIVER_JAR" ]; then
-            echo "Using bundled driver: $DRIVER_JAR"
-          else
-            echo "Downloading clickhouse-jdbc 0.4.6 from Maven Central..."
-            mvn dependency:get -q \
-              -Dartifact=com.clickhouse:clickhouse-jdbc:0.4.6:jar:all \
-              -Ddest=/tmp/clickhouse-jdbc-0.4.6-all.jar
-            DRIVER_JAR=/tmp/clickhouse-jdbc-0.4.6-all.jar
-          fi
+          echo "Downloading clickhouse-jdbc 0.4.6 from Maven Central..."
+          curl -sSfL -o /tmp/clickhouse-jdbc-0.4.6-all.jar \
+            "https://repo1.maven.org/maven2/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar"
           mvn install:install-file -q \
-            -Dfile="$DRIVER_JAR" \
+            -Dfile=/tmp/clickhouse-jdbc-0.4.6-all.jar \
             -DgroupId=com.clickhouse \
             -DartifactId=clickhouse-jdbc \
             -Dversion=0.4.6 \
