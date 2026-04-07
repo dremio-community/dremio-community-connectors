@@ -33,18 +33,19 @@ jobs:
           cache: 'maven'
 
       # ── 3. Install Dremio JARs ───────────────────────────────────────────────
-      # Dremio SDK JARs are extracted from the Docker image — these JARs are not
-      # published to any public Maven repository at the build-stamp version.
+      # JARs are extracted from the Docker image — they are not on any public
+      # Maven repository at this build-stamp version.
       #
-      # Each JAR is installed with a minimal 4-line POM (no <parent>) to prevent
-      # Maven from chasing parent POMs for this build-stamp version.
-      #
-      # The `rm -rf ~/.m2/repository/com/dremio` wipe at the top is essential:
-      # setup-java restores the Maven cache from previous runs, which may contain
-      # stale or partially-installed Dremio JARs that would shadow the fresh ones.
+      # CRITICAL: Use exact filenames, not globs.
+      # The Docker image contains BOTH:
+      #   dremio-sabot-kernel-VERSION.jar        ← main JAR (has exec.catalog etc.)
+      #   dremio-sabot-kernel-VERSION-proto.jar  ← Protobuf-only classifier JAR
+      # A glob like [0-9]*.jar picks the -proto.jar first because '-' (ASCII 45)
+      # sorts before '.' (ASCII 46), silently installing the wrong JAR and causing
+      # "package com.dremio.exec.catalog does not exist" at compile time.
       - name: Install Dremio JARs from Docker image
         env:
-          DREMIO_VERSION: 26.0.5-202509091642240013-f5051a07
+          DREMIO_VER: 26.0.5-202509091642240013-f5051a07
           DREMIO_IMAGE: dremio/dremio-oss:26.0
         run: |
           echo "Pulling $DREMIO_IMAGE..."
@@ -54,54 +55,44 @@ jobs:
           mkdir -p /tmp/dremio-jars
           docker cp "${CONTAINER}:/opt/dremio/jars" /tmp/dremio-jars/
           docker rm "$CONTAINER" > /dev/null
-          JARS_DIR=/tmp/dremio-jars/jars
+          J=/tmp/dremio-jars/jars
 
-          # Wipe any stale cached Dremio JARs so the cache cannot shadow what
-          # we install below.
           rm -rf ~/.m2/repository/com/dremio
 
-          MINIMAL_POM=/tmp/dremio-minimal.pom
-          printf '%s\n' \
-            '<?xml version="1.0" encoding="UTF-8"?>' \
-            '<project><modelVersion>4.0.0</modelVersion>' \
-            '<groupId>GROUPID</groupId><artifactId>ARTIFACT</artifactId>' \
-            '<version>VERSION</version></project>' > "$MINIMAL_POM"
-
           install_jar() {
-            local artifact="$1" groupId="${2:-com.dremio}"
-            local jar
-            jar=$(ls "${JARS_DIR}/${artifact}"-[0-9]*.jar 2>/dev/null | head -1)
-            if [ -z "$jar" ]; then
-              echo "  ERROR: JAR not found for ${artifact}"
-              exit 1
+            local file="$1" gid="$2" aid="$3" ver="$4"
+            if [ ! -f "$file" ]; then
+              echo "  ERROR: not found: $file"; exit 1
             fi
-            local pom="/tmp/pom-${artifact}.xml"
-            sed -e "s|GROUPID|${groupId}|" \
-                -e "s|ARTIFACT|${artifact}|" \
-                -e "s|VERSION|${DREMIO_VERSION}|" \
-                "$MINIMAL_POM" > "$pom"
-            mvn install:install-file -q -Dfile="$jar" -DpomFile="$pom" -Dpackaging=jar
-            echo "  ✓ ${groupId}:${artifact}"
+            mvn install:install-file -q \
+              -Dfile="$file" -DgroupId="$gid" -DartifactId="$aid" \
+              -Dversion="$ver" -Dpackaging=jar
+            echo "  ✓ ${gid}:${aid}"
+          }
+
+          install_jar_optional() {
+            local file="$1" gid="$2" aid="$3" ver="$4"
+            if [ ! -f "$file" ]; then
+              echo "  SKIP (not in image): $aid — Maven will resolve from remote"
+              return
+            fi
+            mvn install:install-file -q \
+              -Dfile="$file" -DgroupId="$gid" -DartifactId="$aid" \
+              -Dversion="$ver" -Dpackaging=jar
+            echo "  ✓ ${gid}:${aid}"
           }
 
           echo "Installing Dremio JARs..."
-          install_jar dremio-sabot-kernel
-          install_jar dremio-common
-          # dremio-sabot-kernel-proto is shaded into dremio-sabot-kernel;
-          # install the kernel JAR under both artifact IDs.
-          _kernel_jar=$(ls "${JARS_DIR}/dremio-sabot-kernel"-[0-9]*.jar 2>/dev/null | head -1)
-          _proto_pom=/tmp/pom-dremio-sabot-kernel-proto.xml
-          sed -e "s|GROUPID|com.dremio|" -e "s|ARTIFACT|dremio-sabot-kernel-proto|" \
-              -e "s|VERSION|${DREMIO_VERSION}|" "$MINIMAL_POM" > "$_proto_pom"
-          mvn install:install-file -q -Dfile="$_kernel_jar" -DpomFile="$_proto_pom" -Dpackaging=jar
-          echo "  ✓ com.dremio:dremio-sabot-kernel-proto (aliased from dremio-sabot-kernel)"
-          install_jar dremio-sabot-vector-tools
-          install_jar dremio-services-namespace
-          install_jar dremio-connector
-          install_jar dremio-sabot-logical
-          install_jar dremio-common-core
-          install_jar dremio-services-catalog
-          install_jar dremio-plugin-common "com.dremio.plugin"
+          install_jar "$J/dremio-sabot-kernel-${DREMIO_VER}.jar"         com.dremio        dremio-sabot-kernel       "$DREMIO_VER"
+          install_jar "$J/dremio-sabot-kernel-${DREMIO_VER}-proto.jar"   com.dremio        dremio-sabot-kernel-proto "$DREMIO_VER"
+          install_jar "$J/dremio-common-${DREMIO_VER}.jar"               com.dremio        dremio-common             "$DREMIO_VER"
+          install_jar "$J/dremio-plugin-common-${DREMIO_VER}.jar"        com.dremio.plugin dremio-plugin-common      "$DREMIO_VER"
+          install_jar "$J/dremio-sabot-vector-tools-${DREMIO_VER}.jar"   com.dremio        dremio-sabot-vector-tools "$DREMIO_VER"
+          install_jar "$J/dremio-services-namespace-${DREMIO_VER}.jar"   com.dremio        dremio-services-namespace "$DREMIO_VER"
+          install_jar "$J/dremio-connector-${DREMIO_VER}.jar"            com.dremio        dremio-connector          "$DREMIO_VER"
+          install_jar "$J/dremio-sabot-logical-${DREMIO_VER}.jar"        com.dremio        dremio-sabot-logical      "$DREMIO_VER"
+          install_jar "$J/dremio-common-core-${DREMIO_VER}.jar"          com.dremio        dremio-common-core        "$DREMIO_VER"
+          install_jar_optional "$J/dremio-services-catalog-${DREMIO_VER}.jar" com.dremio   dremio-services-catalog   "$DREMIO_VER"
           echo "Dremio JAR installation complete."
 
       # ── 4. Build ─────────────────────────────────────────────────────────────
