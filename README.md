@@ -15,6 +15,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Cassandra](cassandra/) | Cassandra CQL | Username/password, SSL | ✅ Tests passing |
 | [Apache Hudi](hudi/) | Hudi tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Delta Lake](delta/) | Delta tables on S3/HDFS | IAM, service account | ✅ Tests passing |
+| [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
 
@@ -102,6 +103,25 @@ Reads Delta Lake tables using `delta-standalone` (no Spark required). Resolves t
 
 ---
 
+### [Excel / CSV Importer](excel-importer/)
+
+Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
+
+```bash
+# Web UI (easiest)
+python3 excel-importer/importer-ui.py
+
+# CLI
+java -jar excel-importer/jars/dremio-excel-importer.jar \
+  --file report.xlsx \
+  --dest "iceberg_minio.my-bucket.my_table" \
+  --user admin --password secret --yes
+```
+
+**Key features:** Web UI · CSV + XLSX + Google Sheets · schema preview · multi-sheet import · append mode · Docker/Kubernetes support
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -130,13 +150,14 @@ cd cassandra && ./rebuild.sh --dry-run      # Preview only
 
 ```
 dremio-community-connectors/
-├── clickhouse/    — ClickHouse connector (ARP/JDBC)
-├── kafka/         — Apache Kafka connector
-├── cassandra/     — Apache Cassandra connector
-├── hudi/          — Apache Hudi connector
-├── delta/         — Delta Lake connector
+├── clickhouse/      — ClickHouse connector (ARP/JDBC)
+├── kafka/           — Apache Kafka connector
+├── cassandra/       — Apache Cassandra connector
+├── hudi/            — Apache Hudi connector
+├── delta/           — Delta Lake connector
+├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
-    ├── workflows/ — Per-connector CI (builds on every push/PR)
+    ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
 ```
 

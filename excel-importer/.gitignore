@@ -1,0 +1,9 @@
+target/
+*.class
+*.iml
+.idea/
+.DS_Store
+__pycache__/
+*.pyc
+uploads/
+*.tmp
