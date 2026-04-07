@@ -1,0 +1,354 @@
+#
+# Copyright (C) 2024 Dremio Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Apache Pinot ARP dialect definition.
+#
+# Pushes down: aggregations, projections, WHERE filters, ORDER BY, LIMIT.
+# JOINs and subqueries are handled by Dremio's query planner instead.
+#
+
+metadata:
+  name: PINOT
+  apiname: pinot
+  spec_version: '1'
+
+syntax:
+  identifier_quote: '"'
+  identifier_length_limit: 128
+  allows_boolean_literal: false
+  map_boolean_literal_to_bit: false
+  supports_catalogs: false
+  supports_schemas: false
+
+data_types:
+  mappings:
+  # Pinot integer types
+  - source:
+      name: "INT"
+    dremio:
+      name: "integer"
+    required_cast_arguments: "none"
+  - source:
+      name: "INTEGER"
+    dremio:
+      name: "integer"
+    required_cast_arguments: "none"
+  - source:
+      name: "LONG"
+    dremio:
+      name: "bigint"
+    required_cast_arguments: "none"
+  - source:
+      name: "BIGINT"
+    dremio:
+      name: "bigint"
+    required_cast_arguments: "none"
+  # Pinot floating point types
+  - source:
+      name: "FLOAT"
+    dremio:
+      name: "double"
+    required_cast_arguments: "none"
+  - source:
+      name: "DOUBLE"
+    dremio:
+      name: "double"
+    required_cast_arguments: "none"
+  - source:
+      name: "BIG_DECIMAL"
+    dremio:
+      name: "double"
+    required_cast_arguments: "none"
+  - source:
+      name: "DECIMAL"
+    dremio:
+      name: "double"
+    required_cast_arguments: "none"
+  # Pinot boolean
+  - source:
+      name: "BOOLEAN"
+    dremio:
+      name: "boolean"
+    required_cast_arguments: "none"
+  # Pinot string / text types
+  - source:
+      name: "STRING"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "VARCHAR"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "JSON"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  # Pinot time types
+  - source:
+      name: "TIMESTAMP"
+    dremio:
+      name: "timestamp"
+    required_cast_arguments: "none"
+  # Pinot binary
+  - source:
+      name: "BYTES"
+    dremio:
+      name: "varbinary"
+    required_cast_arguments: "none"
+
+relational_algebra:
+  aggregation:
+    enable: true
+    group_by_ordinal: false
+    distinct: true
+    count_functions:
+      count_star:
+        enable: true
+      count:
+        enable: true
+      count_distinct:
+        enable: true
+    functions:
+    - names:
+      - "avg"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "double"
+      - args:
+        - "bigint"
+        return: "double"
+    - names:
+      - "max"
+      - "min"
+      signatures:
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "bigint"
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "varchar"
+        return: "varchar"
+      - args:
+        - "timestamp"
+        return: "timestamp"
+    - names:
+      - "sum"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "bigint"
+      - args:
+        - "bigint"
+        return: "bigint"
+
+  except:
+    enable: false
+  project:
+    enable: true
+  # Pinot supports JOINs in its multi-stage query engine (v2), but support
+  # varies by deployment. Disabled here — Dremio handles JOINs instead.
+  join:
+    enable: false
+  sort:
+    enable: true
+    order_by:
+      enable: true
+      default_nulls_ordering: high
+    fetch_offset:
+      offset_fetch:
+        enable: false
+      offset_only:
+        enable: false
+      fetch_only:
+        enable: true
+        format: 'LIMIT {0}'
+  union:
+    enable: false
+  union_all:
+    enable: false
+  values:
+    enable: false
+    method: values
+
+expressions:
+  subqueries:
+    correlated: false
+    scalar: false
+    in_clause: false
+  supports_case: true
+  supports_over: false
+  operators:
+    - names:
+      - "="
+      - "!="
+      - "<>"
+      - ">"
+      - ">="
+      - "<"
+      - "<="
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "boolean"
+      - args:
+        - "double"
+        - "integer"
+        return: "boolean"
+      - args:
+        - "integer"
+        - "double"
+        return: "boolean"
+      - args:
+        - "integer"
+        - "integer"
+        return: "boolean"
+      - args:
+        - "bigint"
+        - "bigint"
+        return: "boolean"
+      - args:
+        - "varchar"
+        - "varchar"
+        return: "boolean"
+      - args:
+        - "timestamp"
+        - "timestamp"
+        return: "boolean"
+      - args:
+        - "boolean"
+        - "boolean"
+        return: "boolean"
+    - names:
+      - "not"
+      signatures:
+      - args:
+        - "boolean"
+        return: "boolean"
+    # Math functions
+    - names:
+      - "abs"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+      - args:
+        - "integer"
+        return: "integer"
+      - args:
+        - "bigint"
+        return: "bigint"
+    - names:
+      - "ceil"
+      - "ceiling"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+    - names:
+      - "floor"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+    - names:
+      - "round"
+      signatures:
+      - args:
+        - "double"
+        - "integer"
+        return: "double"
+      - args:
+        - "double"
+        return: "double"
+    - names:
+      - "sqrt"
+      signatures:
+      - args:
+        - "double"
+        return: "double"
+    - names:
+      - "power"
+      - "pow"
+      signatures:
+      - args:
+        - "double"
+        - "double"
+        return: "double"
+    # String functions
+    - names:
+      - "upper"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+    - names:
+      - "lower"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+    - names:
+      - "length"
+      - "len"
+      signatures:
+      - args:
+        - "varchar"
+        return: "integer"
+    - names:
+      - "trim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+    - names:
+      - "ltrim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+    - names:
+      - "rtrim"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+    - names:
+      - "reverse"
+      signatures:
+      - args:
+        - "varchar"
+        return: "varchar"
+
+  variable_length_operators:
+    - names:
+        - and
+      variable_signatures:
+        - return: boolean
+          arg_type: boolean
+    - names:
+        - or
+      variable_signatures:
+        - return: boolean
+          arg_type: boolean

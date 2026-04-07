@@ -1,0 +1,15 @@
+# =============================================================================
+# Dremio Apache Pinot Connector — Init Container Image
+#
+# Lightweight alpine image that copies the connector JAR into a shared volume
+# on pod startup. Works with standard Dremio Helm chart (no image rebuild).
+# =============================================================================
+
+FROM alpine:3.19
+
+ARG CONNECTOR_JAR=dremio-pinot-connector-1.0.0-SNAPSHOT-plugin.jar
+
+WORKDIR /connector
+COPY target/${CONNECTOR_JAR} ./dremio-pinot-connector-plugin.jar
+
+CMD ["sh", "-c", "cp /connector/dremio-pinot-connector-plugin.jar /opt/dremio/jars/3rdparty/"]
