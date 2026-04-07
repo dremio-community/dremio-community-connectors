@@ -99,7 +99,34 @@ jobs:
           install_jar dremio-services-credentials "com.dremio.services"
           echo "Dremio JAR installation complete."
 
-      # ── 4. Build ─────────────────────────────────────────────────────────────
+      # ── 4. Diagnose classpath (temp — remove after green) ────────────────────
+      - name: Find which Docker JAR contains exec.catalog
+        run: |
+          JARS_DIR=/tmp/dremio-jars/jars
+          echo "=== Checking installed sabot-kernel JAR ==="
+          KERNEL_M2=$(ls ~/.m2/repository/com/dremio/dremio-sabot-kernel/*/dremio-sabot-kernel-*.jar 2>/dev/null | head -1)
+          echo "Installed: $KERNEL_M2"
+          jar tf "$KERNEL_M2" 2>/dev/null | grep "com/dremio/exec/catalog" | head -3 || echo "  exec/catalog NOT in installed kernel JAR"
+
+          echo "=== Scanning Docker JARs for exec/catalog ==="
+          for j in "${JARS_DIR}"/*.jar "${JARS_DIR}"/3rdparty/*.jar; do
+            [ -f "$j" ] || continue
+            count=$(jar tf "$j" 2>/dev/null | grep -c "com/dremio/exec/catalog" || true)
+            if [ "$count" -gt 0 ]; then
+              echo "  FOUND ($count classes) in: $(basename $j)"
+            fi
+          done
+
+          echo "=== Scanning Docker JARs for exec/store ==="
+          for j in "${JARS_DIR}"/*.jar "${JARS_DIR}"/3rdparty/*.jar; do
+            [ -f "$j" ] || continue
+            count=$(jar tf "$j" 2>/dev/null | grep -c "com/dremio/exec/store" || true)
+            if [ "$count" -gt 0 ]; then
+              echo "  FOUND ($count classes) in: $(basename $j)"
+            fi
+          done
+
+      # ── 5. Build ─────────────────────────────────────────────────────────────
       # Apache Kafka client + Avro + Confluent Schema Registry are in pom.xml
       # repositories (Maven Central + Confluent) and download automatically.
       - name: Build connector JAR
