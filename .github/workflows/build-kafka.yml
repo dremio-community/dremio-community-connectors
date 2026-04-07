@@ -81,7 +81,14 @@ jobs:
           echo "Installing Dremio JARs..."
           install_jar dremio-sabot-kernel
           install_jar dremio-common
-          install_jar dremio-sabot-kernel-proto
+          # dremio-sabot-kernel-proto is shaded into dremio-sabot-kernel in the Docker image.
+          # Install the kernel JAR under both artifact IDs.
+          _kernel_jar=$(ls "${JARS_DIR}/dremio-sabot-kernel"-[0-9]*.jar 2>/dev/null | head -1)
+          _proto_pom=/tmp/pom-dremio-sabot-kernel-proto.xml
+          sed -e "s|GROUPID|com.dremio|" -e "s|ARTIFACT|dremio-sabot-kernel-proto|" \
+              -e "s|VERSION|${DREMIO_VERSION}|" "$MINIMAL_POM" > "$_proto_pom"
+          mvn install:install-file -q -Dfile="$_kernel_jar" -DpomFile="$_proto_pom" -Dpackaging=jar
+          echo "  ✓ installed dremio-sabot-kernel-proto (aliased from dremio-sabot-kernel)"
           install_jar dremio-sabot-vector-tools
           install_jar dremio-services-namespace
           install_jar dremio-connector

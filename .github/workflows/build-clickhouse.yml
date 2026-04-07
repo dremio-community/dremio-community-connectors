@@ -86,7 +86,14 @@ jobs:
           echo "Installing Dremio core JARs..."
           install_jar dremio-sabot-kernel
           install_jar dremio-common
-          install_jar dremio-sabot-kernel-proto
+          # dremio-sabot-kernel-proto is shaded into dremio-sabot-kernel in the Docker image.
+          # Install the kernel JAR under both artifact IDs.
+          _kernel_jar=$(ls "${JARS_DIR}/dremio-sabot-kernel"-[0-9]*.jar 2>/dev/null | head -1)
+          _proto_pom=/tmp/pom-dremio-sabot-kernel-proto.xml
+          sed -e "s|GROUPID|com.dremio|" -e "s|ARTIFACT|dremio-sabot-kernel-proto|" \
+              -e "s|VERSION|${DREMIO_VERSION}|" "$MINIMAL_POM" > "$_proto_pom"
+          mvn install:install-file -q -Dfile="$_kernel_jar" -DpomFile="$_proto_pom" -Dpackaging=jar
+          echo "  ✓ installed dremio-sabot-kernel-proto (aliased from dremio-sabot-kernel)"
           install_jar dremio-sabot-vector-tools
           install_jar dremio-services-namespace
           install_jar dremio-connector
@@ -111,7 +118,7 @@ jobs:
 
           echo "Dremio JAR installation complete."
 
-      # ── 4. Install ClickHouse JDBC driver ────────────────────────────────────
+      # ── 4. Install ClickHouse JDBC driver & javax.validation ─────────────────
       # JARs are gitignored, so always download from Maven Central.
       # curl is used directly — mvn dependency:get does not support -Ddest.
       - name: Install ClickHouse JDBC driver
@@ -127,6 +134,23 @@ jobs:
             -Dclassifier=all \
             -Dpackaging=jar
           echo "✓ ClickHouse JDBC driver installed"
+
+          # javax.validation:validation-api:2.0.2 does not exist on Maven Central
+          # (only 2.0.1.Final is published). The APIs are identical — install
+          # 2.0.1.Final under version 2.0.2 to satisfy the provided-scope dep.
+          echo "Installing javax.validation:validation-api:2.0.2 (aliased from 2.0.1.Final)..."
+          curl -sSfL -o /tmp/validation-api-2.0.1.Final.jar \
+            "https://repo1.maven.org/maven2/javax/validation/validation-api/2.0.1.Final/validation-api-2.0.1.Final.jar"
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<project><modelVersion>4.0.0</modelVersion>' \
+            '<groupId>javax.validation</groupId><artifactId>validation-api</artifactId>' \
+            '<version>2.0.2</version></project>' > /tmp/pom-validation-api.xml
+          mvn install:install-file -q \
+            -Dfile=/tmp/validation-api-2.0.1.Final.jar \
+            -DpomFile=/tmp/pom-validation-api.xml \
+            -Dpackaging=jar
+          echo "✓ javax.validation:validation-api:2.0.2 installed"
 
       # ── 5. Build ─────────────────────────────────────────────────────────────
       - name: Build connector JAR
