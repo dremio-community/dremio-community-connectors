@@ -1,0 +1,105 @@
+# =============================================================================
+# Dremio Helm Values — Init Container Approach
+#
+# Use this when you want to inject the Kafka plugin WITHOUT rebuilding the
+# Dremio Enterprise image. Two init containers run before Dremio starts:
+#
+#   1. copy-3rdparty  — copies the existing /opt/dremio/jars/3rdparty content
+#                       from the Dremio image into a shared emptyDir volume
+#   2. kafka-plugin   — copies the Kafka plugin JAR into that same volume
+#
+# The emptyDir volume is then mounted over /opt/dremio/jars/3rdparty so
+# Dremio sees all original JARs plus the Kafka plugin.
+#
+# Helm chart: dremio/dremio-cloud-tools (charts/dremio_v2)
+#
+# Apply:
+#   helm upgrade --install dremio charts/dremio_v2 \
+#     -f your-base-values.yaml \
+#     -f k8s/helm-values-init-container.yaml \
+#     -n dremio
+#
+# BEFORE APPLYING: replace the placeholder image names below.
+# =============================================================================
+
+# Keep the standard Dremio Enterprise image unchanged.
+image: "dremio/dremio-ee"
+imageTag: "26.0.5"
+
+# ---------------------------------------------------------------------------
+# Volumes shared across coordinator and executor pods
+# ---------------------------------------------------------------------------
+extraVolumes:
+  - name: dremio-3rdparty-with-kafka
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: dremio-3rdparty-with-kafka
+    mountPath: /opt/dremio/jars/3rdparty
+
+# ---------------------------------------------------------------------------
+# Coordinator init containers
+# ---------------------------------------------------------------------------
+coordinator:
+  extraInitContainers: |
+    # Step 1: Seed the volume with the existing 3rdparty JARs from the Dremio image.
+    # This is necessary because mounting an emptyDir over the directory would
+    # otherwise hide all the original Dremio JARs.
+    - name: copy-3rdparty
+      image: "dremio/dremio-ee:26.0.5"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Copying existing 3rdparty JARs..."
+          cp -r /opt/dremio/jars/3rdparty/. /mnt/3rdparty/
+          echo "Done. $(ls /mnt/3rdparty | wc -l) JARs copied."
+      volumeMounts:
+        - name: dremio-3rdparty-with-kafka
+          mountPath: /mnt/3rdparty
+
+    # Step 2: Add the Kafka plugin JAR.
+    # Replace the image value with your registry path.
+    - name: kafka-plugin
+      image: "your-registry.example.com/dremio-kafka-plugin-init:1.0.0"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Installing Kafka plugin..."
+          cp /plugin/dremio-kafka-connector-plugin.jar /mnt/3rdparty/
+          echo "Installed: $(ls /mnt/3rdparty/dremio-kafka-connector-*.jar)"
+      volumeMounts:
+        - name: dremio-3rdparty-with-kafka
+          mountPath: /mnt/3rdparty
+
+# ---------------------------------------------------------------------------
+# Executor init containers (identical — every executor node needs the plugin)
+# ---------------------------------------------------------------------------
+executor:
+  extraInitContainers: |
+    - name: copy-3rdparty
+      image: "dremio/dremio-ee:26.0.5"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Copying existing 3rdparty JARs..."
+          cp -r /opt/dremio/jars/3rdparty/. /mnt/3rdparty/
+          echo "Done. $(ls /mnt/3rdparty | wc -l) JARs copied."
+      volumeMounts:
+        - name: dremio-3rdparty-with-kafka
+          mountPath: /mnt/3rdparty
+
+    - name: kafka-plugin
+      image: "your-registry.example.com/dremio-kafka-plugin-init:1.0.0"
+      command:
+        - /bin/sh
+        - -c
+        - |
+          echo "Installing Kafka plugin..."
+          cp /plugin/dremio-kafka-connector-plugin.jar /mnt/3rdparty/
+          echo "Installed: $(ls /mnt/3rdparty/dremio-kafka-connector-*.jar)"
+      volumeMounts:
+        - name: dremio-3rdparty-with-kafka
+          mountPath: /mnt/3rdparty
