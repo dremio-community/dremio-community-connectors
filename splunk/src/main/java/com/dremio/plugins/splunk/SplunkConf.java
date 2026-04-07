@@ -194,6 +194,26 @@ public class SplunkConf extends ConnectionConf<SplunkConf, SplunkStoragePlugin> 
   @DisplayMetadata(label = "Results Page Size")
   public int resultsPageSize = 5000;
 
+  /**
+   * Number of parallel time-range splits per index scan.
+   *
+   * When > 1, the default time window (defaultEarliest → now) is divided into
+   * this many equal sub-ranges. Each sub-range becomes a separate DatasetSplit
+   * that Dremio can dispatch to different executor fragments in parallel, which
+   * reduces wall-clock query time on large or high-volume indexes.
+   *
+   * Set to 1 (default) to use a single sequential scan (the original behaviour).
+   * Typical values: 4–8 for production deployments with ≥4 executor nodes.
+   *
+   * Note: this only affects the default time window. When a query provides an
+   * explicit WHERE _time filter the planner re-partitions based on the pushed-down
+   * bounds; the split count is still capped by this value.
+   */
+  @Tag(19)
+  @NotMetadataImpacting
+  @DisplayMetadata(label = "Parallel Time Buckets (splits per index scan)")
+  public int timeBucketCount = 1;
+
   // -----------------------------------------------------------------------
   // ConnectionConf required override
   // -----------------------------------------------------------------------

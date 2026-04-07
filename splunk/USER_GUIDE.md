@@ -34,7 +34,8 @@ The connector translates Dremio SQL into SPL and executes it via the Splunk mana
 
 1. Dremio's planning layer applies `SplunkFilterRule` and `SplunkProjectionRule` to push predicates and column lists into the `SplunkScanSpec`.
 2. `SplunkScanSpec.toSpl()` renders a complete SPL string: `search index=<name> [earliest=<t>] [latest=<t>] [field=value…] | fields col1 col2 | head <N>`.
-3. At execution time, `SplunkRecordReader` submits the SPL and reads results:
+3. When **Parallel Time Buckets** > 1, the time window is divided into N equal sub-ranges at planning time. Each sub-range is a separate `DatasetSplit` dispatched in parallel to different Dremio executor fragments — each executor runs its own Splunk search independently.
+4. At execution time, `SplunkRecordReader` submits the SPL and reads results:
    - **Blocking mode** (≤ 1,000 events): one `exec_mode=blocking` POST — results return immediately with no polling.
    - **Async mode** (> 1,000 events): create job → poll until `DONE` → page through results.
 4. Results are written into typed Arrow vectors and returned to Dremio.
@@ -231,6 +232,15 @@ Maximum time to wait for a Splunk search job to complete.
 - Default: `300` seconds
 - Increase for long-running searches over large time windows
 - Has no effect in blocking mode (blocking mode uses the HTTP client timeout)
+
+#### Parallel Time Buckets
+Number of parallel time-range splits per index scan.
+
+- Default: `1` (single sequential scan — the original behaviour)
+- When set to N > 1, the default time window (`Default Earliest Time` → now) is divided into N equal sub-ranges. Each sub-range becomes a separate Dremio `DatasetSplit` that can be dispatched to a different executor fragment, reducing wall-clock query time on large or high-volume indexes.
+- Typical values: `4` to `8` for production clusters with 4+ executor nodes
+- The per-bucket event cap is `Default Max Events / N` so the total cap across all buckets is preserved
+- Only affects the default time window; explicit `WHERE _time` filters are re-partitioned by the planner
 
 ---
 
