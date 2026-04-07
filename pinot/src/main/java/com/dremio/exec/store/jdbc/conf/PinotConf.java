@@ -139,8 +139,16 @@ public class PinotConf extends AbstractArpConf<PinotConf> {
     String scheme = useTls ? "jdbc:pinot+ssl" : "jdbc:pinot";
     StringBuilder url = new StringBuilder(
         String.format("%s://%s:%d", scheme, host, port));
+    // useMultiStageEngine enables Pinot's Calcite-based query engine which
+    // supports subqueries and JOINs — required because Dremio's ARP pushdown
+    // generates subquery-wrapped SQL for aggregation + ORDER BY + LIMIT.
+    // enableNullHandling makes Pinot return SQL NULL instead of sentinel values
+    // (Integer.MIN_VALUE for INT, Long.MIN_VALUE for LONG, etc.) so Dremio's
+    // JDBC reader can handle null cells without numeric-cast failures.
+    url.append("?useMultiStageEngine=true");
+    url.append("&enableNullHandling=true");
     if (brokerList != null && !brokerList.isBlank()) {
-      url.append("?brokerList=").append(brokerList.trim());
+      url.append("&brokerList=").append(brokerList.trim());
     }
     return url.toString();
   }
