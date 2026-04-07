@@ -42,7 +42,13 @@ import java.util.LinkedHashMap;
  *
  * _time handling:
  *   Parsed from ISO-8601 string (e.g. "2024-01-15T10:23:45.000+00:00") into
- *   epoch milliseconds, written into a TimestampMilliTZVector(UTC).
+ *   epoch milliseconds, written into a TimeStampMilliVector.
+ *
+ * Blocking mode:
+ *   When maxEvents ≤ BLOCKING_THRESHOLD, uses client.runSearch() with
+ *   exec_mode=blocking. The POST waits for job completion and results are
+ *   returned in one round-trip, cached in-memory, and served from next().
+ *   No separate create-job → poll → paginate flow is needed for small scans.
  *
  * IMPORTANT: Never call addField() on the OutputMutator — vectors must be looked up
  * by name only. Adding fields causes schema corruption in Dremio.
@@ -53,16 +59,26 @@ public class SplunkRecordReader extends AbstractRecordReader {
 
   private static final int MAX_VARCHAR_BYTES = 65536; // 64KB max per cell
 
+  /**
+   * Maximum event count for which we use exec_mode=blocking (one-shot POST).
+   * Queries with maxEvents above this threshold use the async create-job/poll/fetch flow.
+   */
+  private static final int BLOCKING_THRESHOLD = 1_000;
+
   private final SplunkStoragePlugin plugin;
   private final SplunkSubScan       subScan;
   private final SplunkScanSpec      scanSpec;
 
   // Execution state
-  private SplunkClient client;
-  private String       jobSid;          // Splunk search job SID
-  private int          cursor;          // current results offset
-  private int          totalResults;    // total result count from Splunk
-  private boolean      done;
+  private SplunkClient    client;
+  private String          jobSid;          // Splunk search job SID (null in blocking mode)
+  private int             cursor;          // current results offset (streaming mode)
+  private int             totalResults;    // total result count from Splunk (streaming mode)
+  private boolean         done;
+
+  // Blocking mode: all results cached up-front; null means streaming mode
+  private List<JsonNode>  cachedResults  = null;
+  private int             cachedOffset   = 0;
 
   // Bound vectors: column name → (vector, arrowType)
   private final Map<String, BoundColumn> boundColumns = new LinkedHashMap<>();
@@ -104,23 +120,33 @@ public class SplunkRecordReader extends AbstractRecordReader {
       }
     }
 
-    // Create the Splunk search job
+    // Create the Splunk search job (or use blocking mode for small result sets)
     String spl = scanSpec.toSpl();
-    logger.debug("SplunkRecordReader starting search: {} [earliest={}, latest={}]",
-        spl, scanSpec.effectiveEarliest(), scanSpec.effectiveLatest());
+    int    maxEvents = scanSpec.getMaxEvents();
+    logger.debug("SplunkRecordReader starting search: {} [earliest={}, latest={}, maxEvents={}]",
+        spl, scanSpec.effectiveEarliest(), scanSpec.effectiveLatest(), maxEvents);
 
     try {
-      jobSid = client.createSearchJob(spl,
-          scanSpec.effectiveEarliest(), scanSpec.effectiveLatest(), scanSpec.getMaxEvents());
-      client.waitForJob(jobSid);
-      totalResults = client.getJobResultCount(jobSid);
-      logger.debug("Splunk job {} ready, {} results", jobSid, totalResults);
+      if (maxEvents > 0 && maxEvents <= BLOCKING_THRESHOLD) {
+        // Blocking mode: one POST, results returned immediately — no poll loop needed
+        cachedResults = client.runSearch(spl,
+            scanSpec.effectiveEarliest(), scanSpec.effectiveLatest(), maxEvents);
+        cachedOffset  = 0;
+        logger.debug("SplunkRecordReader blocking mode: {} results cached", cachedResults.size());
+      } else {
+        // Async mode: create job, wait for completion, page through results
+        jobSid = client.createSearchJob(spl,
+            scanSpec.effectiveEarliest(), scanSpec.effectiveLatest(), maxEvents);
+        client.waitForJob(jobSid);
+        totalResults = client.getJobResultCount(jobSid);
+        logger.debug("Splunk job {} ready, {} results", jobSid, totalResults);
+      }
     } catch (Exception e) {
       throw new ExecutionSetupException("Failed to execute Splunk search: " + spl, e);
     }
 
     this.cursor = 0;
-    this.done   = (totalResults == 0);
+    this.done   = (cachedResults != null ? cachedResults.isEmpty() : totalResults == 0);
   }
 
   @Override
@@ -130,13 +156,37 @@ public class SplunkRecordReader extends AbstractRecordReader {
     int pageSize = plugin.getConfig().resultsPageSize;
     List<JsonNode> events;
 
-    try {
-      events = client.fetchResultsPage(jobSid, cursor, pageSize);
-    } catch (Exception e) {
-      throw UserException.dataReadError(e)
-          .message("Failed to fetch Splunk results page for job %s at offset %d: %s",
-              jobSid, cursor, e.getMessage())
-          .build(logger);
+    if (cachedResults != null) {
+      // Blocking mode: slice from in-memory list
+      int remaining = cachedResults.size() - cachedOffset;
+      if (remaining <= 0) {
+        done = true;
+        return 0;
+      }
+      int end = Math.min(cachedOffset + pageSize, cachedResults.size());
+      events = cachedResults.subList(cachedOffset, end);
+      cachedOffset = end;
+      if (cachedOffset >= cachedResults.size()) done = true;
+    } else {
+      // Async mode: fetch next page from Splunk
+      try {
+        events = client.fetchResultsPage(jobSid, cursor, pageSize);
+      } catch (Exception e) {
+        throw UserException.dataReadError(e)
+            .message("Failed to fetch Splunk results page for job %s at offset %d: %s",
+                jobSid, cursor, e.getMessage())
+            .build(logger);
+      }
+
+      if (events.isEmpty()) {
+        done = true;
+        return 0;
+      }
+
+      cursor += events.size();
+      if (cursor >= totalResults || events.size() < pageSize) {
+        done = true;
+      }
     }
 
     if (events.isEmpty()) {
@@ -160,11 +210,6 @@ public class SplunkRecordReader extends AbstractRecordReader {
     // Set value counts
     for (BoundColumn bc : boundColumns.values()) {
       bc.vector.setValueCount(count);
-    }
-
-    cursor += count;
-    if (cursor >= totalResults || count < pageSize) {
-      done = true;
     }
 
     return count;

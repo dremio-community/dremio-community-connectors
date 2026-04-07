@@ -24,7 +24,8 @@ public class SplunkRulesFactory extends StoragePluginTypeRulesFactory {
                                    SourceType pluginType) {
     switch (phase) {
       case LOGICAL:
-        return ImmutableSet.of(SplunkScanRule.INSTANCE, SplunkFilterRule.INSTANCE);
+        return ImmutableSet.of(SplunkScanRule.INSTANCE, SplunkFilterRule.INSTANCE,
+            SplunkProjectionRule.INSTANCE);
       case PHYSICAL:
         return ImmutableSet.of(SplunkScanPrule.INSTANCE);
       default:

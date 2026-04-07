@@ -64,6 +64,13 @@ public class SplunkStoragePlugin implements StoragePlugin, SupportsListingDatase
   /** Schema cache: indexName → CachedSchema */
   private final ConcurrentHashMap<String, CachedSchema> schemaCache = new ConcurrentHashMap<>();
 
+  /**
+   * Index event-count cache: populated during listDatasetHandles() so that
+   * getDatasetMetadata() can use the cached value without a second HTTP call.
+   * Key = index name; value = approximate event count from Splunk index metadata.
+   */
+  private final ConcurrentHashMap<String, Long> indexCountCache = new ConcurrentHashMap<>();
+
   private static class CachedSchema {
     final BatchSchema schema;
     final long        estimatedRows;
@@ -162,15 +169,19 @@ public class SplunkStoragePlugin implements StoragePlugin, SupportsListingDatase
   public DatasetHandleListing listDatasetHandles(GetDatasetOption... options)
       throws ConnectorException {
     try {
-      List<String> allIndexes = client.listIndexes();
+      // listIndexesWithCounts() fetches names AND event counts in one HTTP call,
+      // so getDatasetMetadata() won't need a second per-index API call for the count.
+      java.util.Map<String, Long> indexCounts = client.listIndexesWithCounts();
       List<DatasetHandle> handles = new ArrayList<>();
 
       Pattern excludePattern = buildPattern(config.indexExcludePattern, "exclude");
       Pattern includePattern = buildPattern(config.indexIncludePattern, "include");
 
-      for (String index : allIndexes) {
+      for (java.util.Map.Entry<String, Long> entry : indexCounts.entrySet()) {
+        String index = entry.getKey();
         if (excludePattern != null && excludePattern.matcher(index).matches()) continue;
         if (includePattern != null && !includePattern.matcher(index).matches()) continue;
+        indexCountCache.put(index, entry.getValue());
         EntityPath path = new EntityPath(Arrays.asList(name, index));
         handles.add(new SplunkDatasetHandle(path));
       }
@@ -220,7 +231,13 @@ public class SplunkStoragePlugin implements StoragePlugin, SupportsListingDatase
       List<Field> fields = inferrer.inferFields(indexName);
       BatchSchema schema = new BatchSchema(fields);
 
-      long estimatedRows = client.getIndexEventCount(indexName);
+      // Use cached count from the last listDatasetHandles() call to avoid a second HTTP round-trip.
+      // Fall back to a direct API call only if the cache doesn't have an entry for this index
+      // (e.g. getDatasetHandle() was called directly without a preceding list).
+      Long cachedCount = indexCountCache.get(indexName);
+      long estimatedRows = (cachedCount != null)
+          ? cachedCount
+          : client.getIndexEventCount(indexName);
       if (config.metadataCacheTtlSeconds > 0) {
         schemaCache.put(indexName,
             new CachedSchema(schema, estimatedRows, config.metadataCacheTtlSeconds));

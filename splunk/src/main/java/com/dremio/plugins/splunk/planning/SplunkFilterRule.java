@@ -56,10 +56,17 @@ public class SplunkFilterRule extends RelOptRule {
           "SplunkFilterRule");
   }
 
+  /**
+   * Always return true — onMatch() handles the "nothing to do" case with an
+   * early return. This allows the rule to fire on Filter(SplunkScanDrel) even
+   * when the scan already has some pushdowns, so a second Filter layer added
+   * by a later planning rewrite can still push its predicates into the spec.
+   * The anti-loop guarantee comes from onMatch() returning without transforming
+   * when the new spec would be identical to the existing one.
+   */
   @Override
   public boolean matches(RelOptRuleCall call) {
-    SplunkScanDrel scan = call.rel(1);
-    return !scan.getScanSpec().hasFilterPushdown();
+    return true;
   }
 
   @Override
@@ -70,20 +77,41 @@ public class SplunkFilterRule extends RelOptRule {
     List<RexNode> conjuncts = RelOptUtil.conjunctions(filter.getCondition());
     RelDataType   rowType   = scan.getRowType();
 
-    long   earliestEpochMs = -1L;
-    long   latestEpochMs   = -1L;
+    // Start from the existing spec values so we accumulate across multiple passes
+    SplunkScanSpec existing = scan.getScanSpec();
+    long   earliestEpochMs = existing.getEarliestEpochMs();
+    long   latestEpochMs   = existing.getLatestEpochMs();
+
+    // Collect existing SPL clauses to deduplicate
     List<String> splClauses = new ArrayList<>();
+    if (!existing.getSplFilter().isEmpty()) {
+      for (String clause : existing.getSplFilter().split(" ")) {
+        if (!clause.isBlank()) splClauses.add(clause);
+      }
+    }
+
+    boolean changed = false;
 
     for (RexNode conjunct : conjuncts) {
       // Try _time range pushdown
       TimeExtract te = tryExtractTime(conjunct, rowType);
       if (te != null) {
+        long candidate;
         switch (te.op) {
-          case GTE: earliestEpochMs = te.epochMs;     break;
-          case GT:  earliestEpochMs = te.epochMs + 1; break;
-          case LT:  latestEpochMs   = te.epochMs;     break;
-          case LTE: latestEpochMs   = te.epochMs + 1; break;
-          default: break;
+          case GTE: candidate = te.epochMs;     break;
+          case GT:  candidate = te.epochMs + 1; break;
+          case LT:  candidate = te.epochMs;     break;
+          case LTE: candidate = te.epochMs + 1; break;
+          default: continue;
+        }
+        if (te.op == Op.GTE || te.op == Op.GT) {
+          // Tighten lower bound: take the LATER earliest
+          if (candidate > earliestEpochMs) { earliestEpochMs = candidate; changed = true; }
+        } else {
+          // Tighten upper bound: take the EARLIER latest
+          if (latestEpochMs < 0 || candidate < latestEpochMs) {
+            latestEpochMs = candidate; changed = true;
+          }
         }
         continue;
       }
@@ -91,19 +119,21 @@ public class SplunkFilterRule extends RelOptRule {
       // Try field=value equality pushdown
       FieldEqExtract fe = tryExtractFieldEq(conjunct, rowType);
       if (fe != null) {
-        // Escape value for SPL: wrap in quotes if it contains spaces or special chars
-        splClauses.add(fe.fieldName + "=\"" + escapeSpl(fe.value) + "\"");
+        String clause = fe.fieldName + "=\"" + escapeSpl(fe.value) + "\"";
+        if (!splClauses.contains(clause)) {
+          splClauses.add(clause);
+          changed = true;
+        }
       }
     }
 
-    if (earliestEpochMs < 0 && latestEpochMs < 0 && splClauses.isEmpty()) {
-      return; // nothing pushable
-    }
+    // Anti-loop: if nothing actually changed, bail without transforming.
+    // Calcite won't re-fire the rule on an unchanged node.
+    if (!changed) return;
 
     String newSplFilter = String.join(" ", splClauses);
-    SplunkScanSpec newSpec = scan.getScanSpec()
-        .withAllFilters(earliestEpochMs, latestEpochMs, newSplFilter,
-            scan.getScanSpec().getMaxEvents());
+    SplunkScanSpec newSpec = existing.withAllFilters(
+        earliestEpochMs, latestEpochMs, newSplFilter, existing.getMaxEvents());
 
     SplunkScanDrel newScan = new SplunkScanDrel(
         scan.getCluster(),
@@ -120,8 +150,8 @@ public class SplunkFilterRule extends RelOptRule {
     // Keep the original filter as a residual — Dremio will post-filter the results
     RelNode residual = filter.copy(filter.getTraitSet(), List.of((RelNode) newScan));
 
-    logger.debug("SplunkFilterRule: index='{}' earliestMs={} latestMs={} splFilter='{}'",
-        scan.getScanSpec().getIndexName(), earliestEpochMs, latestEpochMs, newSplFilter);
+    logger.debug("SplunkFilterRule: index='{}' earliestMs={} latestMs={} splFilter='{}' changed={}",
+        existing.getIndexName(), earliestEpochMs, latestEpochMs, newSplFilter, changed);
 
     call.transformTo(residual);
   }
