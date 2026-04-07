@@ -1,0 +1,24 @@
+# =============================================================================
+# Dremio Cassandra Connector — Init Container Image
+#
+# A minimal image that holds only the plugin JAR.
+# Used as a Kubernetes init container to inject the JAR into a Dremio pod
+# WITHOUT rebuilding the full Dremio Enterprise image.
+#
+# The DataStax driver is shaded/relocated inside the fat JAR — no second JAR needed.
+#
+# Build this AFTER running: mvn package -DskipTests (from the connector root)
+#
+# Build:
+#   docker build -f k8s/Dockerfile.init \
+#     -t your-registry/dremio-cassandra-plugin-init:1.0.0 .
+# =============================================================================
+
+FROM alpine:3.19
+
+# Copy the plugin JAR into a known location inside this image
+COPY target/dremio-cassandra-connector-*-plugin.jar /plugin/dremio-cassandra-connector-plugin.jar
+
+# Default command: copy the JAR to wherever the volume is mounted.
+# Overridden in the Kubernetes pod spec — see helm-values-init-container.yaml.
+CMD ["cp", "/plugin/dremio-cassandra-connector-plugin.jar", "/opt/dremio/jars/3rdparty/"]

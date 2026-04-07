@@ -1,0 +1,37 @@
+# =============================================================================
+# Dremio Helm Values — Custom Image Approach (Recommended)
+#
+# Use this when you have built a custom Dremio image with the ClickHouse plugin
+# baked in (via k8s/Dockerfile). This is the simplest and most reliable
+# production approach.
+#
+# Helm chart: dremio/dremio-cloud-tools (charts/dremio_v2)
+#   https://github.com/dremio/dremio-cloud-tools
+#
+# Apply:
+#   helm upgrade --install dremio charts/dremio_v2 \
+#     -f your-base-values.yaml \
+#     -f k8s/helm-values-custom-image.yaml \
+#     -n dremio
+#
+# NOTE: Merge these values into your existing values file rather than
+#       replacing it — these only override image-related settings.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Point all Dremio pods (coordinator + executors) at your custom image.
+# Change these to match what you pushed to your registry.
+# ---------------------------------------------------------------------------
+image: "your-registry.example.com/dremio-with-clickhouse"
+imageTag: "26.0.5"
+
+# If your registry requires authentication, create an image pull secret first:
+#   kubectl create secret docker-registry dremio-registry-secret \
+#     --docker-server=your-registry.example.com \
+#     --docker-username=YOUR_USER \
+#     --docker-password=YOUR_TOKEN \
+#     -n dremio
+#
+# Then uncomment:
+# imagePullSecrets:
+#   - name: dremio-registry-secret

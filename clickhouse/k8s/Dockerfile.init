@@ -1,0 +1,31 @@
+# =============================================================================
+# Dremio ClickHouse Connector — Init Container Image
+#
+# A minimal image that holds both plugin JARs required by the ClickHouse
+# connector. Used as a Kubernetes init container to inject the JARs into a
+# Dremio pod WITHOUT rebuilding the full Dremio Enterprise image.
+#
+# ClickHouse requires TWO JARs:
+#   1. dremio-clickhouse-connector-plugin.jar  (the connector plugin)
+#   2. clickhouse-jdbc-all.jar                 (the JDBC driver, deployed separately)
+#
+# Build this AFTER running:
+#   mvn package -DskipTests -q
+#   cp ~/.m2/repository/com/clickhouse/clickhouse-jdbc/0.4.6/clickhouse-jdbc-0.4.6-all.jar target/
+#
+# Or use build.sh which handles both steps automatically.
+#
+# Build:
+#   docker build -f k8s/Dockerfile.init \
+#     -t your-registry/dremio-clickhouse-plugin-init:1.0.0 .
+# =============================================================================
+
+FROM alpine:3.19
+
+# Copy both JARs into a known location inside this image.
+COPY target/dremio-clickhouse-connector-*-plugin.jar /plugin/dremio-clickhouse-connector-plugin.jar
+COPY target/clickhouse-jdbc-*-all.jar /plugin/clickhouse-jdbc-all.jar
+
+# Default command: copy both JARs to wherever the volume is mounted.
+# Overridden in the Kubernetes pod spec — see helm-values-init-container.yaml.
+CMD ["/bin/sh", "-c", "cp /plugin/dremio-clickhouse-connector-plugin.jar /opt/dremio/jars/3rdparty/ && cp /plugin/clickhouse-jdbc-all.jar /opt/dremio/jars/3rdparty/"]
