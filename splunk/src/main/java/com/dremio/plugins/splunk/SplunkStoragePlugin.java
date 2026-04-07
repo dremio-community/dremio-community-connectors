@@ -31,12 +31,14 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -254,27 +256,69 @@ public class SplunkStoragePlugin implements StoragePlugin, SupportsListingDatase
                                                     ListPartitionChunkOption... options)
       throws ConnectorException {
     String indexName = ((SplunkDatasetHandle) handle).getIndexName();
+    int buckets = Math.max(1, config.timeBucketCount);
 
-    // Single partition chunk per index (V1: no time-bucketed parallelism)
-    SplunkScanSpec spec = new SplunkScanSpec(
-        indexName,
-        config.defaultEarliest,
-        "now",
-        -1L,
-        -1L,
-        "",
-        config.defaultMaxEvents,
-        Collections.emptyList()
-    );
+    if (buckets == 1) {
+      // Single partition chunk — original behaviour
+      SplunkScanSpec spec = new SplunkScanSpec(
+          indexName,
+          config.defaultEarliest, "now",
+          -1L, -1L, "",
+          config.defaultMaxEvents,
+          Collections.emptyList()
+      );
+      return singleChunk(spec);
+    }
 
-    long estimatedRows = config.defaultMaxEvents; // conservative; will be refined at execution
-    long sizeBytes = estimatedRows * 512L;
+    // -----------------------------------------------------------------------
+    // Time-bucketed parallel scans
+    // Divide the default time window into `buckets` equal sub-ranges. Each
+    // sub-range becomes an independent DatasetSplit dispatched to a different
+    // executor fragment, reducing wall-clock time on large/high-volume indexes.
+    // -----------------------------------------------------------------------
+    long nowMs       = System.currentTimeMillis();
+    long earliestMs  = resolveRelativeTime(config.defaultEarliest, nowMs);
+    long windowMs    = nowMs - earliestMs;
+    long bucketMs    = windowMs / buckets;
+    // Distribute the event cap evenly; at least 1 per bucket
+    int eventsPerBucket = Math.max(1, config.defaultMaxEvents / buckets);
 
-    byte[] specBytes = spec.toExtendedProperty().getBytes(StandardCharsets.UTF_8);
+    List<PartitionChunk> chunks = new ArrayList<>(buckets);
+    for (int i = 0; i < buckets; i++) {
+      long bucketEarliest = earliestMs + (long) i * bucketMs;
+      long bucketLatest   = (i == buckets - 1) ? nowMs : bucketEarliest + bucketMs;
+
+      SplunkScanSpec spec = new SplunkScanSpec(
+          indexName,
+          config.defaultEarliest, "now",   // kept for display/fallback; effectiveEarliest/Latest use epoch values
+          bucketEarliest, bucketLatest,
+          "", eventsPerBucket,
+          Collections.emptyList()
+      );
+
+      long   estimatedRows = eventsPerBucket;
+      long   sizeBytes     = estimatedRows * 512L;
+      byte[] specBytes     = spec.toExtendedProperty().getBytes(StandardCharsets.UTF_8);
+      DatasetSplit split = DatasetSplit.of(
+          Collections.emptyList(), sizeBytes, estimatedRows,
+          os -> os.write(specBytes));
+      chunks.add(PartitionChunk.of(split));
+    }
+
+    logger.debug("Created {} time-bucketed splits for index '{}' (window {} → {}, {} events/bucket)",
+        buckets, indexName, earliestMs, nowMs, eventsPerBucket);
+    return () -> chunks.iterator();
+  }
+
+  /** Creates a PartitionChunkListing containing a single split. */
+  private static PartitionChunkListing singleChunk(SplunkScanSpec spec) {
+    long   estimatedRows = spec.getMaxEvents();
+    long   sizeBytes     = estimatedRows * 512L;
+    byte[] specBytes     = spec.toExtendedProperty().getBytes(StandardCharsets.UTF_8);
     DatasetSplit split = DatasetSplit.of(
-        Collections.emptyList(), sizeBytes, estimatedRows, os -> os.write(specBytes));
+        Collections.emptyList(), sizeBytes, estimatedRows,
+        os -> os.write(specBytes));
     List<PartitionChunk> chunks = Collections.singletonList(PartitionChunk.of(split));
-
     return () -> chunks.iterator();
   }
 
@@ -308,5 +352,71 @@ public class SplunkStoragePlugin implements StoragePlugin, SupportsListingDatase
       logger.warn("Invalid Splunk index {} pattern '{}': {}", label, regex, e.getMessage());
       return null;
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Relative time resolution
+  // -----------------------------------------------------------------------
+
+  /**
+   * Splunk relative time modifier pattern.
+   * Matches strings like: -24h, -7d, -30m, -1w, -0s, 24h (with optional snap: @h, @d …)
+   */
+  private static final Pattern RELATIVE_TIME_PATTERN =
+      Pattern.compile("^-?(\\d+)([smhdwSMHDW])(?:@.*)?$");
+
+  /**
+   * Resolves a Splunk time expression to an epoch-millisecond value.
+   *
+   * Supported forms:
+   *   -Ns / -Nm / -Nh / -Nd / -Nw  — relative modifiers (N seconds/minutes/hours/days/weeks ago)
+   *   ISO-8601 string               — parsed directly
+   *   numeric string                — treated as epoch-seconds
+   *   null / blank / "-0s"          — returns 0 (beginning of index retention)
+   *
+   * @param timeStr Splunk time expression from config
+   * @param nowMs   current epoch-milliseconds (injected so callers can fix "now" for consistency)
+   * @return epoch-milliseconds
+   */
+  static long resolveRelativeTime(String timeStr, long nowMs) {
+    if (timeStr == null || timeStr.isBlank()) {
+      return 0L; // no lower bound — start from beginning of retention
+    }
+    String trimmed = timeStr.trim();
+    if (trimmed.equals("-0s") || trimmed.equals("0")) {
+      return 0L;
+    }
+
+    // Splunk relative modifier: -Nh, -Nd, -Nw, -Nm, -Ns (leading minus optional)
+    Matcher m = RELATIVE_TIME_PATTERN.matcher(trimmed);
+    if (m.matches()) {
+      long value = Long.parseLong(m.group(1));
+      String unit = m.group(2).toLowerCase(java.util.Locale.ROOT);
+      long offsetMs;
+      switch (unit) {
+        case "s": offsetMs = value * 1_000L;              break;
+        case "m": offsetMs = value * 60_000L;             break;
+        case "h": offsetMs = value * 3_600_000L;          break;
+        case "d": offsetMs = value * 86_400_000L;         break;
+        case "w": offsetMs = value * 7L * 86_400_000L;    break;
+        default:  offsetMs = 86_400_000L;                 break; // fallback: 24 h
+      }
+      return nowMs - offsetMs;
+    }
+
+    // Numeric epoch-seconds
+    try {
+      long epochSeconds = Long.parseLong(trimmed);
+      return epochSeconds * 1_000L;
+    } catch (NumberFormatException ignored) { /* not a number */ }
+
+    // ISO-8601 timestamp
+    try {
+      return Instant.parse(trimmed).toEpochMilli();
+    } catch (Exception ignored) { /* not ISO-8601 */ }
+
+    // Last resort: 24 h ago
+    logger.warn("Could not parse Splunk time expression '{}', defaulting to -24h", timeStr);
+    return nowMs - 86_400_000L;
   }
 }
