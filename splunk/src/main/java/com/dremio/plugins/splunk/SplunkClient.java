@@ -136,6 +136,28 @@ public class SplunkClient implements AutoCloseable {
   }
 
   /**
+   * Returns a map of index name → approximate event count by reading the same
+   * /services/data/indexes response as listIndexes() — no extra HTTP call.
+   * Counts are stale (Splunk index metadata) and suitable for cost estimation only.
+   */
+  public java.util.Map<String, Long> listIndexesWithCounts() throws IOException {
+    JsonNode root = getJson("/services/data/indexes?count=0");
+    java.util.Map<String, Long> result = new java.util.LinkedHashMap<>();
+    JsonNode entries = root.path("entry");
+    if (entries.isArray()) {
+      for (JsonNode entry : entries) {
+        String name = entry.path("name").asText(null);
+        if (name == null || name.isEmpty()) continue;
+        JsonNode content = entry.path("content");
+        long count = content.path("totalEventCount").asLong(-1);
+        if (count < 0) count = content.path("eventCount").asLong(100_000L);
+        result.put(name, count);
+      }
+    }
+    return result;
+  }
+
+  /**
    * Returns true if the named index exists and is accessible.
    */
   public boolean indexExists(String indexName) throws IOException {

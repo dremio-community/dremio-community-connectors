@@ -2,9 +2,15 @@
 
 ---
 
-## Latest Run — Full Connector Validation
+## Latest Run — Post-Optimization Validation (v1.1)
 
-*Run 2026-04-07 against Dremio OSS 26.0.5, Splunk Enterprise 9.x (Docker)*
+*Run 2026-04-07 against Dremio OSS 26.0.5, Splunk Enterprise 10.2.2 (Docker)*
+
+Includes all four optimizations:
+1. **Column projection pushdown** (`SplunkProjectionRule`) — `| fields …` in SPL
+2. **Blocking mode for small queries** — `exec_mode=blocking` when `maxEvents ≤ 1000`
+3. **Cached index event counts** — `listIndexesWithCounts()` avoids per-index HTTP call
+4. **Filter rule accumulation** — `SplunkFilterRule` accumulates across multi-pass planning
 
 ### Smoke Test — 20 / 20 Passed ✅ (`test-connection.sh`)
 
@@ -54,6 +60,16 @@
 |-----|-----------|-----|
 | `SSLHandshakeException: No subject alternative names present` | Java 11 `HttpClient` wraps plain `X509TrustManager` and still runs hostname check even with a trust-all context | Switched to `X509ExtendedTrustManager`; override all 4 `checkXxx` variants including the 3-arg `SSLEngine` form |
 | `UnsupportedOperationException: Unable to determine vector class for type Timestamp(MILLISECOND, UTC)` | Dremio's `CompleteType.getValueVectorClass()` has no mapping for timezone-qualified timestamps | Changed schema to `Timestamp(MILLISECOND, null)`; changed RecordReader to `TimeStampMilliVector` |
+| `SchemaPath.STAR cannot find symbol` | `SchemaPath.STAR` constant does not exist in Dremio 26.x | Replaced with root-segment `"*"` string check |
+
+## Optimizations Applied
+
+| # | Optimization | Change | Impact |
+|---|---|---|---|
+| 1 | Column projection pushdown | Added `SplunkProjectionRule`; appends `\| fields col1 col2` to SPL | Reduces Splunk JSON payload and network transfer for narrow SELECT |
+| 2 | Blocking mode for small queries | `SplunkRecordReader` uses `exec_mode=blocking` when `maxEvents ≤ 1000` | Saves 3+ round-trips (create → poll → fetch) for bounded queries |
+| 3 | Cached index event counts | `listIndexesWithCounts()` returns names + counts in one HTTP call; `getDatasetMetadata()` uses cache | Eliminates one per-index API call during metadata refresh |
+| 4 | Filter rule accumulation | `SplunkFilterRule` accumulates across multiple planner passes; anti-loop via `changed` flag | Allows stacked filters to merge pushdowns correctly |
 
 ---
 
