@@ -48,6 +48,11 @@ jobs:
 
           JARS_DIR=/tmp/dremio-jars/jars
 
+          echo "=== JARs in $JARS_DIR (main) ==="
+          ls "$JARS_DIR"/*.jar 2>/dev/null | xargs -I{} basename {} | sed 's/-26\..*\.jar$//' | sort
+          echo "=== JARs in $JARS_DIR/3rdparty (sample) ==="
+          ls "$JARS_DIR/3rdparty"/*.jar 2>/dev/null | xargs -I{} basename {} | grep -E "dremio|javax.validation" | sort || true
+
           MINIMAL_POM=/tmp/dremio-minimal.pom
           printf '%s\n' \
             '<?xml version="1.0" encoding="UTF-8"?>' \
@@ -60,8 +65,8 @@ jobs:
             local jar
             jar=$(ls "${JARS_DIR}/${artifact}"-[0-9]*.jar 2>/dev/null | head -1)
             if [ -z "$jar" ]; then
-              echo "  WARN: JAR not found for ${artifact} — skipping"
-              return
+              echo "  ERROR: JAR not found for ${artifact} (groupId=${groupId}) — failing"
+              exit 1
             fi
             local pom="/tmp/pom-${artifact}.xml"
             sed -e "s|GROUPID|${groupId}|" \
