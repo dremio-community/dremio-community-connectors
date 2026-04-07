@@ -29,15 +29,19 @@ syntax:
 data_types:
   mappings:
   # Pinot integer types
+  # INT/INTEGER mapped to bigint to avoid cast failures when Pinot returns
+  # the null sentinel value -2147483648 (Integer.MIN_VALUE) as a string.
+  # Dremio's JDBC reader calls getLong() for bigint, which handles the
+  # full int32 range without overflow errors.
   - source:
       name: "INT"
     dremio:
-      name: "integer"
+      name: "bigint"
     required_cast_arguments: "none"
   - source:
       name: "INTEGER"
     dremio:
-      name: "integer"
+      name: "bigint"
     required_cast_arguments: "none"
   - source:
       name: "LONG"
@@ -103,6 +107,39 @@ data_types:
       name: "BYTES"
     dremio:
       name: "varbinary"
+    required_cast_arguments: "none"
+  # Pinot multi-value (array) types — mapped to varchar so Dremio stores the
+  # serialized array representation as a string rather than attempting a
+  # numeric cast on values like [-2147483648] (null-sentinel in array form).
+  - source:
+      name: "INT_ARRAY"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "LONG_ARRAY"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "FLOAT_ARRAY"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "DOUBLE_ARRAY"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "STRING_ARRAY"
+    dremio:
+      name: "varchar"
+    required_cast_arguments: "none"
+  - source:
+      name: "BYTES_ARRAY"
+    dremio:
+      name: "varchar"
     required_cast_arguments: "none"
 
 relational_algebra:

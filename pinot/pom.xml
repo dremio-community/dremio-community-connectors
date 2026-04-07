@@ -345,6 +345,18 @@
                     <exclude>META-INF/*.RSA</exclude>
                   </excludes>
                 </filter>
+                <!--
+                  Exclude the upstream ResultTableResultSet from the Pinot JDBC driver.
+                  Our patched version in src/main/java/ replaces it so that multi-value
+                  (array) columns are returned as scalar strings rather than bracket-
+                  wrapped JSON arrays (e.g., [-2147483648]), which broke BIGINT casts.
+                -->
+                <filter>
+                  <artifact>org.apache.pinot:pinot-jdbc-client</artifact>
+                  <excludes>
+                    <exclude>org/apache/pinot/client/ResultTableResultSet.class</exclude>
+                  </excludes>
+                </filter>
                 <!-- Exclude Jackson — Dremio provides these -->
                 <filter>
                   <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
