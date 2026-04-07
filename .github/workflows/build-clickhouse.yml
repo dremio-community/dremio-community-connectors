@@ -106,7 +106,8 @@ jobs:
           install_jar "$J/dremio-connector-${DREMIO_VER}.jar"            com.dremio          dremio-connector            "$DREMIO_VER"
           install_jar "$J/dremio-sabot-logical-${DREMIO_VER}.jar"        com.dremio          dremio-sabot-logical        "$DREMIO_VER"
           install_jar "$J/dremio-common-core-${DREMIO_VER}.jar"          com.dremio          dremio-common-core          "$DREMIO_VER"
-          install_jar_optional "$J/dremio-services-options-${DREMIO_VER}.jar"    com.dremio          dremio-services-options     "$DREMIO_VER"
+          install_jar_optional "$J/dremio-services-options-${DREMIO_VER}.jar"      com.dremio          dremio-services-options     "$DREMIO_VER"
+          install_jar_optional "$J/dremio-services-datastore-${DREMIO_VER}.jar"   com.dremio          dremio-services-datastore   "$DREMIO_VER"
           install_jar_optional "$J/dremio-services-credentials-${DREMIO_VER}.jar" com.dremio.services dremio-services-credentials "$DREMIO_VER"
 
           echo "Installing Dremio CE JDBC JARs..."
