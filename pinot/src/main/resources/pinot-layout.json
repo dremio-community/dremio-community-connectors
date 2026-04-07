@@ -1,0 +1,73 @@
+{
+  "sourceType": "PINOT",
+  "metadataRefresh": {
+    "datasetDiscovery": true
+  },
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isGeneral": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.host",
+                "size": "half",
+                "validate": { "isRequired": true }
+              },
+              {
+                "propName": "config.port",
+                "size": "half"
+              }
+            ]
+          },
+          {
+            "name": "Authentication",
+            "layout": "row",
+            "elements": [
+              {
+                "propName": "config.username",
+                "size": "half"
+              },
+              {
+                "propName": "config.password",
+                "size": "half"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced Options",
+        "sections": [
+          {
+            "elements": [
+              {
+                "propName": "config.useTls"
+              },
+              {
+                "propName": "config.brokerList",
+                "tooltip": "Optional comma-separated broker addresses (host:port). Leave blank to let the controller discover brokers automatically."
+              },
+              {
+                "propName": "config.fetchSize",
+                "size": "half",
+                "tooltip": "Number of records to fetch per page.",
+                "help": {
+                  "position": "bottom",
+                  "text": "Set to 0 to have Dremio decide automatically."
+                }
+              },
+              {
+                "propName": "config.enableExternalQuery"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

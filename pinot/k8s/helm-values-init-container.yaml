@@ -1,0 +1,22 @@
+# Dremio Helm chart values — Init container approach.
+# Installs the Pinot connector into a shared volume on pod startup.
+# Lets you use the standard Dremio image without rebuilding it.
+#
+# Usage:
+#   helm upgrade --install dremio dremio/dremio \
+#     -f helm-values-init-container.yaml
+
+extraInitContainers:
+  - name: pinot-connector-installer
+    image: myregistry.io/myorg/dremio-pinot-connector-init:1.0.0-SNAPSHOT
+    volumeMounts:
+      - name: dremio-3rdparty-pinot
+        mountPath: /opt/dremio/jars/3rdparty
+
+extraVolumes:
+  - name: dremio-3rdparty-pinot
+    emptyDir: {}
+
+extraVolumeMounts:
+  - name: dremio-3rdparty-pinot
+    mountPath: /opt/dremio/jars/3rdparty

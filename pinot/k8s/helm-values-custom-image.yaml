@@ -1,0 +1,15 @@
+# Dremio Helm chart values — Custom Dremio image with Pinot connector pre-installed.
+# Use this if you prefer to bake the connector into your Dremio image.
+#
+# Usage:
+#   helm upgrade --install dremio dremio/dremio \
+#     -f helm-values-custom-image.yaml
+
+image: myregistry.io/myorg/dremio-with-pinot
+imageTag: "26.0.5"
+
+coordinator:
+  replicaCount: 1
+
+executor:
+  replicaCount: 3
