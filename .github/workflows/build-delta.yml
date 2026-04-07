@@ -70,7 +70,7 @@ jobs:
           install_jar dremio-common
           install_jar dremio-sabot-kernel-proto
           install_jar dremio-sabot-vector-tools
-          install_jar dremio-protocol
+          install_jar dremio-services-namespace
           install_jar dremio-connector
           install_jar dremio-sabot-logical
           install_jar dremio-common-core

@@ -49,7 +49,7 @@ jobs:
           JARS_DIR=/tmp/dremio-jars/jars
 
           install_jar() {
-            local artifact="$1"
+            local artifact="$1" groupId="${2:-com.dremio}"
             local jar
             jar=$(ls "${JARS_DIR}/${artifact}"-[0-9]*.jar 2>/dev/null | head -1)
             if [ -z "$jar" ]; then
@@ -58,11 +58,11 @@ jobs:
             fi
             mvn install:install-file -q \
               -Dfile="$jar" \
-              -DgroupId=com.dremio \
+              -DgroupId="$groupId" \
               -DartifactId="$artifact" \
               -Dversion="$DREMIO_VERSION" \
               -Dpackaging=jar
-            echo "  ✓ installed ${artifact}"
+            echo "  ✓ installed ${artifact} (${groupId})"
           }
 
           echo "Installing Dremio JARs..."
@@ -70,10 +70,13 @@ jobs:
           install_jar dremio-common
           install_jar dremio-sabot-kernel-proto
           install_jar dremio-sabot-vector-tools
-          install_jar dremio-protocol
+          install_jar dremio-services-namespace
           install_jar dremio-connector
           install_jar dremio-sabot-logical
           install_jar dremio-common-core
+          install_jar dremio-services-datastore
+          install_jar dremio-plugin-common        "com.dremio.plugin"
+          install_jar dremio-services-credentials "com.dremio.services"
           echo "Dremio JAR installation complete."
 
       # ── 4. Build ─────────────────────────────────────────────────────────────
