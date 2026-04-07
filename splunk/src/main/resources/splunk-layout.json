@@ -1,0 +1,149 @@
+{
+  "sourceType": "SPLUNK",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Splunk for new indexes"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.hostname",
+            "size": "FULL",
+            "label": "Hostname",
+            "placeholder": "e.g. splunk.example.com",
+            "tooltip": "Splunk server hostname or IP address",
+            "errMsg": "Hostname is required"
+          },
+          {
+            "propName": "config.port",
+            "label": "Port",
+            "type": "number",
+            "tooltip": "Splunk management REST API port. Default: 8089 (on-prem). Splunk Cloud uses 443."
+          },
+          {
+            "propName": "config.useSsl",
+            "label": "Use SSL / HTTPS",
+            "type": "checkbox",
+            "tooltip": "Enable HTTPS for all API calls. Always enabled for Splunk Cloud. Recommended for on-prem."
+          },
+          {
+            "propName": "config.splunkCloud",
+            "label": "Splunk Cloud",
+            "type": "checkbox",
+            "tooltip": "Enable Splunk Cloud mode. Forces port 443 and SSL. Use bearer token authentication."
+          },
+          {
+            "propName": "config.disableSslVerification",
+            "label": "Disable SSL Certificate Verification",
+            "type": "checkbox",
+            "tooltip": "Skip SSL certificate verification. For self-signed certificates only. Do NOT enable in production."
+          }
+        ]
+      },
+      {
+        "name": "Authentication",
+        "elements": [
+          {
+            "propName": "config.username",
+            "label": "Username",
+            "tooltip": "Splunk username. Used with password authentication. Leave blank when using an auth token."
+          },
+          {
+            "propName": "config.password",
+            "label": "Password",
+            "type": "password",
+            "tooltip": "Splunk password. Dremio obtains a session key via the Splunk auth API."
+          },
+          {
+            "propName": "config.authToken",
+            "label": "Auth Token (optional)",
+            "type": "password",
+            "tooltip": "Bearer token for authentication. Takes priority over username/password. Use for Splunk Cloud JWT tokens or on-prem tokens created under Settings → Tokens."
+          }
+        ]
+      },
+      {
+        "name": "Scan Behavior",
+        "elements": [
+          {
+            "propName": "config.defaultEarliest",
+            "label": "Default Earliest Time",
+            "placeholder": "-24h",
+            "tooltip": "Splunk relative time modifier for unfiltered scans (no WHERE _time clause). Prevents full-index scans on large deployments. Examples: -1h, -7d, -30d@d."
+          },
+          {
+            "propName": "config.defaultMaxEvents",
+            "label": "Default Max Events Per Query",
+            "type": "number",
+            "tooltip": "Maximum events returned per query when no LIMIT is specified. Splunk silently truncates at this value. Default: 50000."
+          }
+        ]
+      },
+      {
+        "name": "Schema Inference",
+        "elements": [
+          {
+            "propName": "config.sampleEventsForSchema",
+            "label": "Sample Events For Schema Inference",
+            "type": "number",
+            "tooltip": "Number of recent events to sample per index to infer column names and types. Higher values are more accurate but slower. Default: 200."
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Metadata Cache TTL (seconds)",
+            "type": "number",
+            "tooltip": "How long to cache index list and inferred schemas. Set to 0 to always fetch fresh. Default: 300."
+          }
+        ]
+      },
+      {
+        "name": "Index Filtering",
+        "elements": [
+          {
+            "propName": "config.indexExcludePattern",
+            "label": "Index Exclude Pattern (regex)",
+            "placeholder": "^(_.*|history|fishbucket)$",
+            "tooltip": "Java regex for Splunk indexes to hide from Dremio. Default hides Splunk internal indexes."
+          },
+          {
+            "propName": "config.indexIncludePattern",
+            "label": "Index Include Pattern (regex)",
+            "placeholder": "Leave blank to include all",
+            "tooltip": "Optional Java regex. When set, only matching indexes appear in Dremio."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.searchMode",
+            "label": "Search Mode",
+            "placeholder": "normal",
+            "tooltip": "Splunk search mode: normal (balanced, default), fast (disables field extraction, faster), verbose (all fields, slower)."
+          },
+          {
+            "propName": "config.resultsPageSize",
+            "label": "Results Page Size",
+            "type": "number",
+            "tooltip": "Number of events per results page when paginating through job results. Default: 5000."
+          },
+          {
+            "propName": "config.connectionTimeoutSeconds",
+            "label": "Connection Timeout (seconds)",
+            "type": "number",
+            "tooltip": "HTTP connection timeout. Default: 30."
+          },
+          {
+            "propName": "config.readTimeoutSeconds",
+            "label": "Read Timeout (seconds)",
+            "type": "number",
+            "tooltip": "HTTP read/socket timeout. Increase for large or slow queries. Default: 300."
+          }
+        ]
+      }
+    ]
+  }
+}
