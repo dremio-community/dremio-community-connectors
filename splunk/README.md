@@ -2,6 +2,8 @@
 
 Query Splunk indexes as SQL tables directly from Dremio. SQL queries are translated to SPL (Splunk Processing Language) with time-range and field-equality pushdown for efficient execution.
 
+**Status: ✅ 20/20 smoke tests passing**
+
 ## What it does
 
 - Exposes every visible Splunk index as a Dremio table

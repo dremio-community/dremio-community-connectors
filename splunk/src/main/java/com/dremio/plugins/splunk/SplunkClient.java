@@ -6,9 +6,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509TrustManager;
 import java.io.IOException;
+import java.net.Socket;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -477,7 +482,12 @@ public class SplunkClient implements AutoCloseable {
 
     if (config.disableSslVerification) {
       builder.sslContext(buildTrustAllSslContext());
-      logger.warn("Splunk SSL certificate verification is DISABLED. "
+      // Also disable hostname verification (SNI / SAN checks) — required when
+      // connecting to Splunk on a Docker bridge IP or bare IP without a SAN cert.
+      SSLParameters sslParams = new SSLParameters();
+      sslParams.setEndpointIdentificationAlgorithm(""); // "" = disabled
+      builder.sslParameters(sslParams);
+      logger.warn("Splunk SSL certificate verification and hostname checking are DISABLED. "
           + "Do not use this setting in production.");
     }
 
@@ -486,10 +496,18 @@ public class SplunkClient implements AutoCloseable {
 
   private static SSLContext buildTrustAllSslContext()
       throws NoSuchAlgorithmException, KeyManagementException {
+    // X509ExtendedTrustManager is required for Java 11+ HttpClient:
+    // the standard X509TrustManager (2-arg) gets wrapped by the JDK and still triggers
+    // hostname verification. The Extended form receives the SSLEngine directly and
+    // overriding all 4 checkXxx methods fully bypasses both cert and hostname checks.
     TrustManager[] trustAll = new TrustManager[]{
-        new X509TrustManager() {
+        new X509ExtendedTrustManager() {
           public void checkClientTrusted(X509Certificate[] c, String a) {}
           public void checkServerTrusted(X509Certificate[] c, String a) {}
+          public void checkClientTrusted(X509Certificate[] c, String a, Socket s) {}
+          public void checkServerTrusted(X509Certificate[] c, String a, Socket s) {}
+          public void checkClientTrusted(X509Certificate[] c, String a, SSLEngine e) {}
+          public void checkServerTrusted(X509Certificate[] c, String a, SSLEngine e) {}
           public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[0]; }
         }
     };

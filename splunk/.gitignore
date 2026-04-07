@@ -5,4 +5,5 @@ target/
 .DS_Store
 *.jar
 !jars/
+!jars/*.jar
 BUILD_JOURNAL.md

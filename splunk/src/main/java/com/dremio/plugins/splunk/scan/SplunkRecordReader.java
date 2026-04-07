@@ -13,7 +13,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
 import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.TimeStampMilliTZVector;
+import org.apache.arrow.vector.TimeStampMilliVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -210,7 +210,7 @@ public class SplunkRecordReader extends AbstractRecordReader {
     ArrowType type = bc.type;
 
     if (type instanceof ArrowType.Timestamp) {
-      TimeStampMilliTZVector v = (TimeStampMilliTZVector) bc.vector;
+      TimeStampMilliVector v = (TimeStampMilliVector) bc.vector;
       if (value == null) { v.setNull(row); return; }
       long epochMs = SplunkSchemaInferrer.parseTime(value);
       if (epochMs < 0) { v.setNull(row); return; }
@@ -265,7 +265,7 @@ public class SplunkRecordReader extends AbstractRecordReader {
     else if (vector instanceof BigIntVector)      ((BigIntVector)           vector).setNull(row);
     else if (vector instanceof Float8Vector)      ((Float8Vector)           vector).setNull(row);
     else if (vector instanceof BitVector)         ((BitVector)              vector).setNull(row);
-    else if (vector instanceof TimeStampMilliTZVector)
-                                                  ((TimeStampMilliTZVector) vector).setNull(row);
+    else if (vector instanceof TimeStampMilliVector)
+                                                  ((TimeStampMilliVector) vector).setNull(row);
   }
 }

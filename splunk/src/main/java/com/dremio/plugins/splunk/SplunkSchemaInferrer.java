@@ -52,9 +52,11 @@ public class SplunkSchemaInferrer {
 
   static {
     METADATA_FIELDS = new ArrayList<>();
-    // _time as TIMESTAMP(MILLISECOND, UTC) — parsed from ISO-8601 string
+    // _time as TIMESTAMP(MILLISECOND, null) — no timezone qualifier, which is what
+    // Dremio's CompleteType.TIMESTAMP maps to. Using "UTC" causes an UnsupportedOperationException
+    // in CompleteType.getValueVectorClass() because Dremio only supports the no-tz variant.
     METADATA_FIELDS.add(new Field(COL_TIME,
-        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC")), null));
+        FieldType.nullable(new ArrowType.Timestamp(TimeUnit.MILLISECOND, null)), null));
     METADATA_FIELDS.add(new Field(COL_RAW,        FieldType.nullable(ArrowType.Utf8.INSTANCE), null));
     METADATA_FIELDS.add(new Field(COL_INDEX,      FieldType.nullable(ArrowType.Utf8.INSTANCE), null));
     METADATA_FIELDS.add(new Field(COL_SOURCETYPE, FieldType.nullable(ArrowType.Utf8.INSTANCE), null));
