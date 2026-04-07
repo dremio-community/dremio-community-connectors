@@ -16,6 +16,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Hudi](hudi/) | Hudi tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Delta Lake](delta/) | Delta tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
+| [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | 🚧 In development |
 
 ---
 
@@ -103,6 +104,27 @@ Reads Delta Lake tables using `delta-standalone` (no Spark required). Resolves t
 
 ---
 
+### [Splunk](splunk/)
+
+Queries Splunk indexes as SQL tables using the Splunk REST API. Translates SQL to SPL with time-range pushdown (`WHERE _time >= ...` → `earliest_time` parameter) and field-equality pushdown (`WHERE field = 'value'` → SPL filter clause). Supports Splunk on-prem and Splunk Cloud (JWT bearer tokens). Schema is inferred by sampling recent events per index.
+
+```bash
+./add-splunk-source.sh --name splunk --host splunk.example.com \
+  --splunk-user admin --splunk-pass changeme
+```
+
+```sql
+SELECT _time, _host, _sourcetype, status, clientip
+FROM splunk.web_logs
+WHERE _time >= NOW() - INTERVAL '1' HOUR
+  AND status = '404'
+LIMIT 500;
+```
+
+**Key features:** SPL time pushdown · field-equality pushdown · LIMIT pushdown · schema inference · Splunk Cloud · bearer token auth · job cleanup on cancel
+
+---
+
 ### [Excel / CSV Importer](excel-importer/)
 
 Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
@@ -155,6 +177,7 @@ dremio-community-connectors/
 ├── cassandra/       — Apache Cassandra connector
 ├── hudi/            — Apache Hudi connector
 ├── delta/           — Delta Lake connector
+├── splunk/          — Splunk connector (REST API / SPL)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)

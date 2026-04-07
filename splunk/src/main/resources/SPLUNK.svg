@@ -1,0 +1,9 @@
+<svg id="sources/SPLUNK" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Splunk brand green background -->
+  <rect width="40" height="40" rx="6" fill="#65A637"/>
+  <!-- Splunk ">" chevron logo mark, white, centered -->
+  <g transform="translate(8, 8)" fill="white">
+    <path d="M6 4 L18 12 L6 20 L6 16 L14 12 L6 8 Z"/>
+    <path d="M13 4 L25 12 L13 20 L13 16 L21 12 L13 8 Z" opacity="0.6"/>
+  </g>
+</svg>
