@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
+  <defs>
+
+    <!-- Background -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%"   stop-color="#05101f"/>
+      <stop offset="100%" stop-color="#0c2038"/>
+    </linearGradient>
+
+    <!-- Right-side darkening for text contrast -->
+    <linearGradient id="rightDim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#0c2038" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#060e1c" stop-opacity="0.55"/>
+    </linearGradient>
+
+    <!-- Narwhal body -->
+    <linearGradient id="bodyGrad" x1="0.2" y1="0" x2="0.8" y2="1">
+      <stop offset="0%"   stop-color="#deeeff"/>
+      <stop offset="100%" stop-color="#8ec8e8"/>
+    </linearGradient>
+
+    <!-- Narwhal belly highlight -->
+    <linearGradient id="bellyGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.0"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.18"/>
+    </linearGradient>
+
+    <!-- Horn -->
+    <linearGradient id="hornGrad" x1="1" y1="1" x2="0" y2="0">
+      <stop offset="0%"   stop-color="#88d8f8"/>
+      <stop offset="55%"  stop-color="#d8f4ff"/>
+      <stop offset="100%" stop-color="#ffffff"/>
+    </linearGradient>
+
+    <!-- Data stream (horizontal fade) -->
+    <linearGradient id="streamGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#00c8ff" stop-opacity="0"/>
+      <stop offset="25%"  stop-color="#00c8ff" stop-opacity="0.7"/>
+      <stop offset="75%"  stop-color="#00c8ff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#00c8ff" stop-opacity="0"/>
+    </linearGradient>
+
+    <!-- Narwhal aura -->
+    <radialGradient id="aura" cx="52%" cy="50%" r="42%">
+      <stop offset="0%"   stop-color="#1060a0" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#05101f"  stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Horn glow filter -->
+    <filter id="hornGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Body soft glow -->
+    <filter id="bodyGlow" x="-8%" y="-8%" width="116%" height="116%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Star twinkle -->
+    <filter id="sparkle" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="2"/>
+    </filter>
+
+    <!-- Text glow -->
+    <filter id="textGlow">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#00aaff" flood-opacity="0.5"/>
+    </filter>
+
+    <!-- Clip path for badge text -->
+    <clipPath id="badgeClip">
+      <rect x="720" y="0" width="560" height="640"/>
+    </clipPath>
+
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  BACKGROUND                                     -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect width="1280" height="640" fill="url(#bgGrad)"/>
+
+  <!-- Subtle dot grid -->
+  <g fill="#2a5880" opacity="0.12">
+    <circle cx="128" cy="64"  r="1.2"/> <circle cx="256" cy="64"  r="1.2"/>
+    <circle cx="384" cy="64"  r="1.2"/> <circle cx="512" cy="64"  r="1.2"/>
+    <circle cx="640" cy="64"  r="1.2"/> <circle cx="768" cy="64"  r="1.2"/>
+    <circle cx="896" cy="64"  r="1.2"/> <circle cx="1024" cy="64" r="1.2"/>
+    <circle cx="1152" cy="64" r="1.2"/>
+    <circle cx="128" cy="128"  r="1.2"/> <circle cx="256" cy="128"  r="1.2"/>
+    <circle cx="384" cy="128"  r="1.2"/> <circle cx="512" cy="128"  r="1.2"/>
+    <circle cx="640" cy="128"  r="1.2"/> <circle cx="768" cy="128"  r="1.2"/>
+    <circle cx="896" cy="128"  r="1.2"/> <circle cx="1024" cy="128" r="1.2"/>
+    <circle cx="1152" cy="128" r="1.2"/>
+    <circle cx="128" cy="192"  r="1.2"/> <circle cx="256" cy="192"  r="1.2"/>
+    <circle cx="384" cy="192"  r="1.2"/> <circle cx="512" cy="192"  r="1.2"/>
+    <circle cx="640" cy="192"  r="1.2"/> <circle cx="768" cy="192"  r="1.2"/>
+    <circle cx="896" cy="192"  r="1.2"/> <circle cx="1024" cy="192" r="1.2"/>
+    <circle cx="1152" cy="192" r="1.2"/>
+    <circle cx="128" cy="256"  r="1.2"/> <circle cx="256" cy="256"  r="1.2"/>
+    <circle cx="384" cy="256"  r="1.2"/> <circle cx="512" cy="256"  r="1.2"/>
+    <circle cx="640" cy="256"  r="1.2"/> <circle cx="768" cy="256"  r="1.2"/>
+    <circle cx="896" cy="256"  r="1.2"/> <circle cx="1024" cy="256" r="1.2"/>
+    <circle cx="1152" cy="256" r="1.2"/>
+    <circle cx="128" cy="320"  r="1.2"/> <circle cx="256" cy="320"  r="1.2"/>
+    <circle cx="384" cy="320"  r="1.2"/> <circle cx="512" cy="320"  r="1.2"/>
+    <circle cx="640" cy="320"  r="1.2"/> <circle cx="768" cy="320"  r="1.2"/>
+    <circle cx="896" cy="320"  r="1.2"/> <circle cx="1024" cy="320" r="1.2"/>
+    <circle cx="1152" cy="320" r="1.2"/>
+    <circle cx="128" cy="384"  r="1.2"/> <circle cx="256" cy="384"  r="1.2"/>
+    <circle cx="384" cy="384"  r="1.2"/> <circle cx="512" cy="384"  r="1.2"/>
+    <circle cx="640" cy="384"  r="1.2"/> <circle cx="768" cy="384"  r="1.2"/>
+    <circle cx="896" cy="384"  r="1.2"/> <circle cx="1024" cy="384" r="1.2"/>
+    <circle cx="1152" cy="384" r="1.2"/>
+    <circle cx="128" cy="448"  r="1.2"/> <circle cx="256" cy="448"  r="1.2"/>
+    <circle cx="384" cy="448"  r="1.2"/> <circle cx="512" cy="448"  r="1.2"/>
+    <circle cx="640" cy="448"  r="1.2"/> <circle cx="768" cy="448"  r="1.2"/>
+    <circle cx="896" cy="448"  r="1.2"/> <circle cx="1024" cy="448" r="1.2"/>
+    <circle cx="1152" cy="448" r="1.2"/>
+    <circle cx="128" cy="512"  r="1.2"/> <circle cx="256" cy="512"  r="1.2"/>
+    <circle cx="384" cy="512"  r="1.2"/> <circle cx="512" cy="512"  r="1.2"/>
+    <circle cx="640" cy="512"  r="1.2"/> <circle cx="768" cy="512"  r="1.2"/>
+    <circle cx="896" cy="512"  r="1.2"/> <circle cx="1024" cy="512" r="1.2"/>
+    <circle cx="1152" cy="512" r="1.2"/>
+    <circle cx="128" cy="576"  r="1.2"/> <circle cx="256" cy="576"  r="1.2"/>
+    <circle cx="384" cy="576"  r="1.2"/> <circle cx="512" cy="576"  r="1.2"/>
+    <circle cx="640" cy="576"  r="1.2"/> <circle cx="768" cy="576"  r="1.2"/>
+    <circle cx="896" cy="576"  r="1.2"/> <circle cx="1024" cy="576" r="1.2"/>
+    <circle cx="1152" cy="576" r="1.2"/>
+  </g>
+
+  <!-- Stars -->
+  <g fill="white">
+    <!-- Dim field stars -->
+    <circle cx="42"  cy="30"  r="1"   opacity="0.35"/>
+    <circle cx="110" cy="88"  r="1.2" opacity="0.5"/>
+    <circle cx="75"  cy="155" r="0.9" opacity="0.3"/>
+    <circle cx="205" cy="42"  r="0.9" opacity="0.4"/>
+    <circle cx="455" cy="52"  r="1"   opacity="0.35"/>
+    <circle cx="580" cy="28"  r="0.9" opacity="0.45"/>
+    <circle cx="705" cy="68"  r="1.1" opacity="0.5"/>
+    <circle cx="825" cy="22"  r="0.9" opacity="0.3"/>
+    <circle cx="945" cy="48"  r="1"   opacity="0.4"/>
+    <circle cx="1055" cy="88" r="1.2" opacity="0.35"/>
+    <circle cx="1155" cy="32" r="0.9" opacity="0.5"/>
+    <circle cx="1225" cy="112" r="1"  opacity="0.3"/>
+    <circle cx="28"  cy="205" r="0.9" opacity="0.35"/>
+    <circle cx="155" cy="248" r="1.2" opacity="0.45"/>
+    <circle cx="1108" cy="162" r="1"  opacity="0.35"/>
+    <circle cx="1205" cy="225" r="1.2" opacity="0.5"/>
+    <circle cx="1245" cy="305" r="0.9" opacity="0.28"/>
+    <circle cx="1185" cy="382" r="1"  opacity="0.4"/>
+    <circle cx="1125" cy="455" r="1.2" opacity="0.35"/>
+    <circle cx="1225" cy="505" r="0.9" opacity="0.5"/>
+    <circle cx="1165" cy="565" r="1"  opacity="0.28"/>
+    <circle cx="1055" cy="605" r="1.2" opacity="0.4"/>
+    <circle cx="965"  cy="622" r="0.9" opacity="0.35"/>
+    <circle cx="862"  cy="608" r="1"  opacity="0.5"/>
+    <circle cx="782"  cy="592" r="1.2" opacity="0.28"/>
+    <circle cx="685"  cy="618" r="0.9" opacity="0.4"/>
+    <circle cx="565"  cy="602" r="1"  opacity="0.35"/>
+    <circle cx="62"   cy="582" r="1.2" opacity="0.5"/>
+    <circle cx="142"  cy="545" r="0.9" opacity="0.28"/>
+    <circle cx="52"   cy="452" r="1"  opacity="0.4"/>
+    <circle cx="88"   cy="392" r="1.2" opacity="0.35"/>
+    <!-- Brighter accent stars -->
+    <circle cx="178"  cy="108" r="1.8" opacity="0.75"/>
+    <circle cx="852"  cy="82"  r="1.8" opacity="0.68"/>
+    <circle cx="1105" cy="282" r="2"   opacity="0.78"/>
+    <circle cx="974"  cy="552" r="1.8" opacity="0.68"/>
+    <circle cx="382"  cy="22"  r="2"   opacity="0.82"/>
+    <circle cx="48"   cy="318" r="1.6" opacity="0.6"/>
+    <circle cx="1245" cy="480" r="1.6" opacity="0.6"/>
+    <!-- Glowing accent -->
+    <circle cx="178"  cy="108" r="4"   opacity="0.18" filter="url(#sparkle)"/>
+    <circle cx="382"  cy="22"  r="4"   opacity="0.18" filter="url(#sparkle)"/>
+    <circle cx="1105" cy="282" r="4"   opacity="0.18" filter="url(#sparkle)"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  DATA STREAMS                                   -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <g>
+    <rect x="0"   y="216" width="680" height="2"   fill="url(#streamGrad)" rx="1" opacity="0.6"/>
+    <rect x="30"  y="248" width="580" height="1.2" fill="url(#streamGrad)" rx="1" opacity="0.45"/>
+    <rect x="0"   y="278" width="520" height="2.5" fill="url(#streamGrad)" rx="1" opacity="0.55"/>
+    <rect x="60"  y="368" width="560" height="2.5" fill="url(#streamGrad)" rx="1" opacity="0.55"/>
+    <rect x="30"  y="398" width="520" height="1.2" fill="url(#streamGrad)" rx="1" opacity="0.45"/>
+    <rect x="0"   y="428" width="640" height="2"   fill="url(#streamGrad)" rx="1" opacity="0.6"/>
+  </g>
+
+  <!-- Glowing data packets on streams -->
+  <g fill="#00d8ff">
+    <circle cx="195" cy="216" r="3.5" opacity="0.9"/>
+    <circle cx="380" cy="248" r="2.8" opacity="0.7"/>
+    <circle cx="510" cy="278" r="3.5" opacity="0.8"/>
+    <circle cx="155" cy="398" r="2.8" opacity="0.7"/>
+    <circle cx="345" cy="368" r="3.5" opacity="0.9"/>
+    <circle cx="475" cy="428" r="2.5" opacity="0.65"/>
+    <!-- Packet glows -->
+    <circle cx="195" cy="216" r="8"   opacity="0.15" filter="url(#sparkle)"/>
+    <circle cx="345" cy="368" r="8"   opacity="0.15" filter="url(#sparkle)"/>
+    <circle cx="510" cy="278" r="8"   opacity="0.15" filter="url(#sparkle)"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  NARWHAL AURA                                   -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <ellipse cx="390" cy="322" rx="330" ry="195" fill="url(#aura)"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  NARWHAL                                        -->
+  <!--  Body center ≈ (375, 322), facing right →       -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- Shadow ellipse under body -->
+  <ellipse cx="385" cy="348" rx="205" ry="28" fill="#062040" opacity="0.45"/>
+
+  <!-- Upper tail fluke -->
+  <path d="
+    M 158 306
+    C 144 286, 118 264, 90 250
+    C 83 247, 80 257, 87 266
+    C 100 283, 128 300, 148 312
+    Z
+  " fill="url(#bodyGrad)"/>
+
+  <!-- Lower tail fluke -->
+  <path d="
+    M 160 336
+    C 146 356, 118 376, 90 390
+    C 83 393, 82 382, 90 373
+    C 104 357, 130 342, 150 330
+    Z
+  " fill="url(#bodyGrad)"/>
+
+  <!-- Main body -->
+  <path d="
+    M 158 306
+    C 170 272, 220 246, 295 242
+    C 375 236, 462 244, 522 266
+    C 552 278, 568 300, 566 324
+    C 564 348, 548 366, 520 374
+    C 462 388, 375 390, 295 386
+    C 220 382, 170 358, 158 324
+    C 156 316, 156 310, 158 306
+    Z
+  " fill="url(#bodyGrad)" filter="url(#bodyGlow)"/>
+
+  <!-- Belly sheen (bottom highlight) -->
+  <path d="
+    M 210 376
+    C 265 390, 370 392, 455 386
+    C 500 382, 535 368, 548 354
+    C 532 372, 498 384, 455 388
+    C 368 394, 262 390, 210 376
+    Z
+  " fill="url(#bellyGrad)"/>
+
+  <!-- Top highlight (specular) -->
+  <path d="
+    M 230 248
+    C 310 238, 420 238, 495 258
+    C 525 266, 545 280, 548 294
+    C 535 276, 515 264, 488 256
+    C 415 238, 308 238, 230 248
+    Z
+  " fill="white" opacity="0.22"/>
+
+  <!-- Dorsal fin -->
+  <path d="
+    M 338 246
+    C 345 216, 368 200, 380 206
+    C 387 212, 380 234, 370 246
+    Z
+  " fill="#a8d4ec"/>
+
+  <!-- Pectoral flipper -->
+  <path d="
+    M 330 368
+    C 328 392, 308 412, 292 406
+    C 282 402, 295 380, 315 366
+    Z
+  " fill="#a0c8e4"/>
+
+  <!-- Blowhole (subtle dot) -->
+  <ellipse cx="410" cy="242" rx="8" ry="4" fill="#7ab8d8" opacity="0.6"/>
+
+  <!-- Eye -->
+  <circle cx="538" cy="310" r="11"  fill="#12203a"/>
+  <circle cx="538" cy="310" r="6.5" fill="#080e1e"/>
+  <circle cx="542" cy="305" r="3"   fill="white" opacity="0.92"/>
+  <circle cx="535" cy="312" r="1.2" fill="white" opacity="0.45"/>
+
+  <!-- Smile -->
+  <path d="M 554 330 C 558 335, 553 340, 547 338"
+        stroke="#7ab8d4" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  HORN / TUSK                                    -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- Glow halo behind horn -->
+  <path d="M 543 316 L 795 192 L 547 302 Z"
+        fill="#00d8ff" opacity="0.25" filter="url(#hornGlow)"/>
+  <!-- Horn body -->
+  <path d="M 550 320 L 795 192 L 554 306 Z"
+        fill="url(#hornGrad)" filter="url(#hornGlow)"/>
+
+  <!-- Spiral groove lines on horn -->
+  <g stroke="#b8e8ff" stroke-linecap="round" opacity="0.55">
+    <line x1="572" y1="314" x2="605" y2="297" stroke-width="1"/>
+    <line x1="603" y1="300" x2="638" y2="282" stroke-width="1"/>
+    <line x1="636" y1="284" x2="671" y2="267" stroke-width="1"/>
+    <line x1="669" y1="269" x2="704" y2="252" stroke-width="1"/>
+    <line x1="702" y1="254" x2="736" y2="237" stroke-width="1"/>
+    <line x1="734" y1="239" x2="768" y2="222" stroke-width="1"/>
+  </g>
+
+  <!-- Horn tip sparkle -->
+  <circle cx="795" cy="192" r="5.5" fill="white" opacity="0.95" filter="url(#hornGlow)"/>
+  <circle cx="795" cy="192" r="12"  fill="#00d8ff" opacity="0.25" filter="url(#sparkle)"/>
+
+  <!-- Sparkles scattered from horn tip -->
+  <g fill="white">
+    <circle cx="812" cy="180" r="2.8" opacity="0.8"/>
+    <circle cx="806" cy="200" r="2"   opacity="0.65"/>
+    <circle cx="778" cy="174" r="2.2" opacity="0.7"/>
+    <circle cx="825" cy="196" r="1.5" opacity="0.5"/>
+    <circle cx="818" cy="168" r="1.8" opacity="0.55"/>
+    <!-- Glow halos -->
+    <circle cx="812" cy="180" r="6" opacity="0.2" filter="url(#sparkle)"/>
+    <circle cx="778" cy="174" r="5" opacity="0.2" filter="url(#sparkle)"/>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  RIGHT-SIDE DIM OVERLAY                         -->
+  <!-- ═══════════════════════════════════════════════ -->
+  <rect x="720" y="0" width="560" height="640" fill="url(#rightDim)"/>
+
+  <!-- ═══════════════════════════════════════════════ -->
+  <!--  TEXT & BADGES                                  -->
+  <!-- ═══════════════════════════════════════════════ -->
+
+  <!-- "DREMIO" eyebrow label -->
+  <text x="848" y="228"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="22" font-weight="300" letter-spacing="10"
+        fill="#5ab4e0" opacity="0.88">DREMIO</text>
+
+  <!-- Main title line 1 -->
+  <text x="845" y="318"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="68" font-weight="800" letter-spacing="-2"
+        fill="white" filter="url(#textGlow)">Community</text>
+
+  <!-- Main title line 2 -->
+  <text x="845" y="392"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="68" font-weight="800" letter-spacing="-2"
+        fill="white" filter="url(#textGlow)">Connectors</text>
+
+  <!-- Separator line -->
+  <line x1="848" y1="416" x2="1240" y2="416"
+        stroke="#1e6888" stroke-width="1.5" opacity="0.7"/>
+
+  <!-- Connector pills -->
+  <g font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+     font-size="15" font-weight="500">
+
+    <!-- Kafka -->
+    <rect x="848" y="432" width="86"  height="30" rx="15"
+          fill="#0a2540" stroke="#1e6888" stroke-width="1.2"/>
+    <text x="891" y="452" text-anchor="middle" fill="#6cc8ee">Kafka</text>
+
+    <!-- ClickHouse -->
+    <rect x="946" y="432" width="118" height="30" rx="15"
+          fill="#0a2540" stroke="#1e6888" stroke-width="1.2"/>
+    <text x="1005" y="452" text-anchor="middle" fill="#6cc8ee">ClickHouse</text>
+
+    <!-- Cassandra -->
+    <rect x="1076" y="432" width="112" height="30" rx="15"
+          fill="#0a2540" stroke="#1e6888" stroke-width="1.2"/>
+    <text x="1132" y="452" text-anchor="middle" fill="#6cc8ee">Cassandra</text>
+
+    <!-- Delta Lake -->
+    <rect x="848" y="474" width="108" height="30" rx="15"
+          fill="#0a2540" stroke="#1e6888" stroke-width="1.2"/>
+    <text x="902" y="494" text-anchor="middle" fill="#6cc8ee">Delta Lake</text>
+
+    <!-- Hudi -->
+    <rect x="968" y="474" width="78"  height="30" rx="15"
+          fill="#0a2540" stroke="#1e6888" stroke-width="1.2"/>
+    <text x="1007" y="494" text-anchor="middle" fill="#6cc8ee">Hudi</text>
+
+  </g>
+
+  <!-- Tagline -->
+  <text x="848" y="548"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="16" font-weight="300" letter-spacing="1"
+        fill="#4a98c0" opacity="0.75">Open-source connectors for Apache Dremio</text>
+
+</svg>
