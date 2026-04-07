@@ -124,6 +124,18 @@ All pushed-down predicates are also kept as Dremio residual filters for correctn
 
 For Splunk Cloud, use a bearer token (JWT) created under **Settings → Tokens** in your Splunk Cloud instance. Do not use username/password with Splunk Cloud.
 
+## Keeping Up with Dremio Upgrades
+
+`rebuild.sh` detects the running Dremio version, updates `pom.xml`, rebuilds the JAR against the live JARs, and redeploys — all in one command:
+
+```bash
+cd splunk && ./rebuild.sh               # Docker (default: try-dremio)
+cd splunk && ./rebuild.sh --k8s pod-0   # Kubernetes
+cd splunk && ./rebuild.sh --dry-run     # Preview only (no changes)
+```
+
+If nothing changed it exits immediately — safe to run on every Dremio upgrade.
+
 ## Building from Source
 
 ```bash
@@ -154,6 +166,11 @@ mvn package -q -DskipTests
 - SPL is not SQL: complex predicates (OR across fields, LIKE, numeric ranges on non-`_time` fields) are not pushed down and are applied as Dremio residual filters.
 - `_time` pushdown uses Splunk job parameters (`earliest_time`/`latest_time`), not SPL `earliest()`/`latest()` functions — this is the correct approach for job-based search.
 - Write operations (`INSERT`, `UPDATE`, `DELETE`) are not supported — Splunk is a read-only source for Dremio.
+
+## More Documentation
+
+- [INSTALL.md](INSTALL.md) — step-by-step install for Docker, bare-metal, and Kubernetes
+- [TEST_RESULTS.md](TEST_RESULTS.md) — full test results and known bugs found during testing
 
 ## License
 
