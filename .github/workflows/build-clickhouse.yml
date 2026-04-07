@@ -48,6 +48,13 @@ jobs:
 
           JARS_DIR=/tmp/dremio-jars/jars
 
+          MINIMAL_POM=/tmp/dremio-minimal.pom
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<project><modelVersion>4.0.0</modelVersion>' \
+            '<groupId>GROUPID</groupId><artifactId>ARTIFACT</artifactId>' \
+            '<version>VERSION</version></project>' > "$MINIMAL_POM"
+
           install_jar() {
             local artifact="$1" groupId="${2:-com.dremio}"
             local jar
@@ -59,13 +66,16 @@ jobs:
               echo "  WARN: JAR not found for ${artifact} — skipping"
               return
             fi
+            local pom="/tmp/pom-${artifact}.xml"
+            sed -e "s|GROUPID|${groupId}|" \
+                -e "s|ARTIFACT|${artifact}|" \
+                -e "s|VERSION|${DREMIO_VERSION}|" \
+                "$MINIMAL_POM" > "$pom"
             mvn install:install-file -q \
               -Dfile="$jar" \
-              -DgroupId="$groupId" \
-              -DartifactId="$artifact" \
-              -Dversion="$DREMIO_VERSION" \
+              -DpomFile="$pom" \
               -Dpackaging=jar
-            echo "  ✓ installed ${artifact}"
+            echo "  ✓ installed ${artifact} (${groupId})"
           }
 
           install_jar_plugins() {
