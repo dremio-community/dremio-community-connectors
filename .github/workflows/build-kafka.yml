@@ -62,14 +62,24 @@ jobs:
 
           rm -rf ~/.m2/repository/com/dremio
 
+          # Write a minimal POM template — no <parent> so Maven never tries to
+          # resolve dremio-sabot-parent / dremio-common-parent from the public repo.
+          TPOM=/tmp/dremio-pom-template.xml
+          printf '%s\n' \
+            '<?xml version="1.0" encoding="UTF-8"?>' \
+            '<project><modelVersion>4.0.0</modelVersion>' \
+            '<groupId>GROUPID</groupId><artifactId>ARTIFACTID</artifactId>' \
+            '<version>VERSION</version></project>' > "$TPOM"
+
           install_jar() {
             local file="$1" gid="$2" aid="$3" ver="$4"
             if [ ! -f "$file" ]; then
               echo "  ERROR: not found: $file"; exit 1
             fi
-            mvn install:install-file -q \
-              -Dfile="$file" -DgroupId="$gid" -DartifactId="$aid" \
-              -Dversion="$ver" -Dpackaging=jar
+            local pom="/tmp/pom-${aid}.xml"
+            sed -e "s|GROUPID|${gid}|" -e "s|ARTIFACTID|${aid}|" -e "s|VERSION|${ver}|" \
+              "$TPOM" > "$pom"
+            mvn install:install-file -q -Dfile="$file" -DpomFile="$pom" -Dpackaging=jar
             echo "  ✓ ${gid}:${aid}"
           }
 
@@ -79,9 +89,10 @@ jobs:
               echo "  SKIP (not in image): $aid — Maven will resolve from remote"
               return
             fi
-            mvn install:install-file -q \
-              -Dfile="$file" -DgroupId="$gid" -DartifactId="$aid" \
-              -Dversion="$ver" -Dpackaging=jar
+            local pom="/tmp/pom-${aid}.xml"
+            sed -e "s|GROUPID|${gid}|" -e "s|ARTIFACTID|${aid}|" -e "s|VERSION|${ver}|" \
+              "$TPOM" > "$pom"
+            mvn install:install-file -q -Dfile="$file" -DpomFile="$pom" -Dpackaging=jar
             echo "  ✓ ${gid}:${aid}"
           }
 
