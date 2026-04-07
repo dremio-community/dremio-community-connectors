@@ -16,7 +16,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Hudi](hudi/) | Hudi tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Delta Lake](delta/) | Delta tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
-| [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | 🚧 In development |
+| [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 
 ---
 
