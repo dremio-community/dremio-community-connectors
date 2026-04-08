@@ -162,6 +162,73 @@ public final class VectorUtils {
     return result;
   }
 
+  // ---------------------------------------------------------------------------
+  // Arithmetic operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Element-wise addition: result[i] = a[i] + b[i]
+   */
+  public static double[] add(double[] a, double[] b) {
+    checkSameDimensions(a, b);
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) result[i] = a[i] + b[i];
+    return result;
+  }
+
+  /**
+   * Element-wise subtraction: result[i] = a[i] - b[i]
+   */
+  public static double[] subtract(double[] a, double[] b) {
+    checkSameDimensions(a, b);
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) result[i] = a[i] - b[i];
+    return result;
+  }
+
+  /**
+   * Scalar multiplication: result[i] = a[i] * scalar
+   */
+  public static double[] scale(double[] a, double scalar) {
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) result[i] = a[i] * scalar;
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Slicing / indexing
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Return a sub-vector from index start (inclusive) to end (exclusive).
+   * Supports Matryoshka embeddings: VECTOR_SLICE(embedding, 0, 256)
+   * Negative end = length + end (Python-style): -1 means last element excluded.
+   */
+  public static double[] slice(double[] a, int start, int end) {
+    int len = a.length;
+    if (end < 0) end = len + end;
+    if (start < 0) start = 0;
+    if (end > len) end = len;
+    if (start >= end) return new double[0];
+    double[] result = new double[end - start];
+    System.arraycopy(a, start, result, 0, end - start);
+    return result;
+  }
+
+  /**
+   * Return the element at the given zero-based index.
+   * Supports negative indexing: -1 = last element.
+   */
+  public static double elementAt(double[] a, int index) {
+    int len = a.length;
+    if (index < 0) index = len + index;
+    if (index < 0 || index >= len) {
+      throw new IllegalArgumentException(
+          "Index " + index + " out of bounds for vector of length " + len);
+    }
+    return a[index];
+  }
+
   /**
    * Serialize a double[] back to a JSON array string: "[0.12, -0.45, 0.88]"
    */

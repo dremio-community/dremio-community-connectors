@@ -9,6 +9,8 @@ import org.apache.arrow.memory.ArrowBuf;
 import org.apache.arrow.vector.holders.NullableFloat8Holder;
 import org.apache.arrow.vector.holders.NullableVarCharHolder;
 import org.apache.arrow.vector.holders.NullableIntHolder;
+import org.apache.arrow.vector.holders.Float8Holder;
+import org.apache.arrow.vector.holders.IntHolder;
 
 /**
  * Dremio SQL UDFs for vector similarity and distance operations.
@@ -354,6 +356,167 @@ public class VectorDistanceFunctions {
       out.start  = 0;
       out.end    = bOut.length;
       out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_ADD ────────────────────────────────────────────────────────────
+
+  /**
+   * Element-wise addition of two vectors. Returns a JSON array string.
+   *   VECTOR_ADD('[1.0,2.0,3.0]', '[4.0,5.0,6.0]')  →  '[5.0,7.0,9.0]'
+   */
+  @FunctionTemplate(
+      name = "vector_add",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorAdd implements SimpleFunction {
+    @Param   NullableVarCharHolder vec1;
+    @Param   NullableVarCharHolder vec2;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a  = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b  = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.add(a, b));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_SUBTRACT ───────────────────────────────────────────────────────
+
+  /**
+   * Element-wise subtraction. Returns a JSON array string.
+   *   VECTOR_SUBTRACT('[5.0,7.0]', '[1.0,2.0]')  →  '[4.0,5.0]'
+   */
+  @FunctionTemplate(
+      name = "vector_subtract",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorSubtract implements SimpleFunction {
+    @Param   NullableVarCharHolder vec1;
+    @Param   NullableVarCharHolder vec2;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a  = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b  = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.subtract(a, b));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_SCALE ──────────────────────────────────────────────────────────
+
+  /**
+   * Multiply every element by a scalar. Returns a JSON array string.
+   *   VECTOR_SCALE('[1.0,2.0,3.0]', 2.0)  →  '[2.0,4.0,6.0]'
+   *   VECTOR_SCALE('[1.0,2.0,3.0]', 0.5)  →  '[0.5,1.0,1.5]'
+   */
+  @FunctionTemplate(
+      name = "vector_scale",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorScale implements SimpleFunction {
+    @Param   NullableVarCharHolder vec;
+    @Param   Float8Holder          scalar;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b1);
+      String s   = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.scale(a, scalar.value));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_SLICE ──────────────────────────────────────────────────────────
+
+  /**
+   * Extract a sub-vector from index start (inclusive) to end (exclusive).
+   * Supports Matryoshka embedding truncation.
+   *   VECTOR_SLICE('[0.1,0.2,0.3,0.4,0.5]', 1, 4)  →  '[0.2,0.3,0.4]'
+   *   VECTOR_SLICE(embedding, 0, 256)  -- first 256 dims of a 1536-dim vector
+   */
+  @FunctionTemplate(
+      name = "vector_slice",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorSlice implements SimpleFunction {
+    @Param   NullableVarCharHolder vec;
+    @Param   IntHolder             start;
+    @Param   IntHolder             end;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b1);
+      String s   = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.slice(a, start.value, end.value));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_ELEMENT_AT ─────────────────────────────────────────────────────
+
+  /**
+   * Return the element at the given zero-based index. Supports negative indexing.
+   *   VECTOR_ELEMENT_AT('[0.1,0.2,0.3]', 0)   →  0.1
+   *   VECTOR_ELEMENT_AT('[0.1,0.2,0.3]', -1)  →  0.3  (last element)
+   */
+  @FunctionTemplate(
+      name = "vector_element_at",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorElementAt implements SimpleFunction {
+    @Param   NullableVarCharHolder vec;
+    @Param   IntHolder             index;
+    @Output  NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b1 = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b1);
+      String s   = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      out.value  = com.dremio.udf.vector.VectorUtils.elementAt(a, index.value);
     }
   }
 }
