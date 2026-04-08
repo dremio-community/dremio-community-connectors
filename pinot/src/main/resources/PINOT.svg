@@ -1,0 +1,24 @@
+<svg id="sources/PINOT" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Pinot brand crimson background -->
+  <rect width="40" height="40" rx="6" fill="#C01848"/>
+
+  <!-- Wine glass: bowl narrows from wide top to thin stem, then flares to base -->
+  <!-- Bowl -->
+  <path d="M7 4 L33 4 Q30 19 20 22.5 Q10 19 7 4 Z" fill="white"/>
+  <!-- Stem -->
+  <rect x="18.5" y="22" width="3" height="9" fill="white"/>
+  <!-- Base -->
+  <rect x="12" y="31" width="16" height="3.5" rx="1.5" fill="white"/>
+
+  <!-- Pinot "b" mark (crimson over white glass = negative space) -->
+  <!-- Two droplet dots above the "b" -->
+  <circle cx="16"   cy="8.5" r="1.8" fill="#C01848"/>
+  <circle cx="22.5" cy="7"   r="1.4" fill="#C01848"/>
+
+  <!-- "b" vertical stroke -->
+  <rect x="14" y="11.5" width="2.5" height="9" rx="1.25" fill="#C01848"/>
+
+  <!-- "b" bowl: filled circle with white counter -->
+  <circle cx="19.5" cy="17"  r="4"   fill="#C01848"/>
+  <circle cx="19.5" cy="17"  r="2.1" fill="white"/>
+</svg>
