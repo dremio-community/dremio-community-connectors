@@ -210,7 +210,7 @@ java -jar excel-importer/jars/dremio-excel-importer.jar \
 
 ### [Vector Distance UDF](vector-udf/)
 
-Scalar UDF library that adds 19 vector similarity, distance, and arithmetic functions to Dremio SQL. Store embeddings as `VARCHAR` columns in Iceberg, Delta, Hudi, or any Dremio-accessible table, and run semantic search queries without moving data to a dedicated vector database.
+Scalar UDF library that adds 26 vector similarity, distance, arithmetic, and transformation functions to Dremio SQL. Store embeddings as `VARCHAR` columns in Iceberg, Delta, Hudi, or any Dremio-accessible table, and run semantic search queries without moving data to a dedicated vector database.
 
 ```sql
 -- Semantic search: top-10 most similar documents
