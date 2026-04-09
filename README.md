@@ -19,7 +19,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
-| [Vector Distance UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 26 functions |
+| [Vector UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 26 functions |
 
 ---
 
@@ -208,7 +208,7 @@ java -jar excel-importer/jars/dremio-excel-importer.jar \
 
 ---
 
-### [Vector Distance UDF](vector-udf/)
+### [Vector UDF](vector-udf/)
 
 Scalar UDF library that adds 26 vector similarity, distance, arithmetic, and transformation functions to Dremio SQL. Store embeddings as `VARCHAR` columns in Iceberg, Delta, Hudi, or any Dremio-accessible table, and run semantic search queries without moving data to a dedicated vector database.
 
@@ -270,7 +270,7 @@ dremio-community-connectors/
 ├── dynamodb/        — Amazon DynamoDB connector (native)
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
-├── vector-udf/      — Vector similarity / distance UDF library
+├── vector-udf/      — Vector UDF library (26 scalar functions)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
