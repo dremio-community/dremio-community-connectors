@@ -1,0 +1,80 @@
+{
+  "sourceType": "AMAZON_DYNAMODB",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan DynamoDB for new tables"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.region",
+            "size": "FULL",
+            "label": "AWS Region",
+            "placeholder": "e.g. us-east-1",
+            "tooltip": "AWS region where your DynamoDB tables are located"
+          },
+          {
+            "propName": "config.endpointOverride",
+            "label": "Endpoint Override",
+            "placeholder": "e.g. http://localhost:8000 (leave blank for AWS)",
+            "tooltip": "Override the DynamoDB endpoint URL. Use http://localhost:8000 for DynamoDB Local. Leave blank to connect to AWS DynamoDB."
+          }
+        ]
+      },
+      {
+        "name": "Credentials",
+        "elements": [
+          {
+            "propName": "config.accessKeyId",
+            "label": "Access Key ID",
+            "placeholder": "Leave blank to use IAM / instance profile",
+            "tooltip": "AWS Access Key ID. Leave blank to use the default credential chain (IAM role, instance profile, environment variables)."
+          },
+          {
+            "propName": "config.secretAccessKey",
+            "label": "Secret Access Key",
+            "type": "password",
+            "tooltip": "AWS Secret Access Key. Leave blank to use the default credential chain."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.sampleSize",
+            "label": "Schema Sample Size",
+            "type": "number",
+            "tooltip": "Number of items to sample per table for schema inference. Larger values improve accuracy but increase metadata refresh time (default 100)."
+          },
+          {
+            "propName": "config.splitParallelism",
+            "label": "Split Parallelism",
+            "type": "number",
+            "tooltip": "Number of parallel scan segments per table. Higher values increase throughput on large tables (default 4, max 1,000,000)."
+          },
+          {
+            "propName": "config.readTimeoutSeconds",
+            "label": "Read Timeout (seconds)",
+            "type": "number",
+            "tooltip": "AWS SDK call timeout in seconds (default 30)."
+          },
+          {
+            "propName": "config.maxPageSize",
+            "label": "Page Size",
+            "type": "number",
+            "tooltip": "Maximum number of items returned per DynamoDB Scan/Query page (default 1000)."
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Schema Cache TTL (seconds)",
+            "type": "number",
+            "tooltip": "How long (in seconds) to cache the inferred Arrow schema per table before re-sampling. Set to 0 to disable caching (default 60)."
+          }
+        ]
+      }
+    ]
+  }
+}
