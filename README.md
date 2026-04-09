@@ -15,8 +15,11 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Cassandra](cassandra/) | Cassandra CQL | Username/password, SSL | ✅ Tests passing |
 | [Apache Hudi](hudi/) | Hudi tables on S3/HDFS | IAM, service account | ✅ Tests passing |
 | [Delta Lake](delta/) | Delta tables on S3/HDFS | IAM, service account | ✅ Tests passing |
-| [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
+| [Apache Pinot](pinot/) | Pinot real-time tables | Username/password, TLS | ✅ 10/10 tests passing |
+| [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
+| [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
+| [Vector Distance UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 19 functions |
 
 ---
 
@@ -43,6 +46,14 @@ cd hudi
 
 # Delta Lake
 cd delta
+./install.sh --docker try-dremio --prebuilt
+
+# Apache Pinot
+cd pinot
+./install.sh --docker try-dremio
+
+# Amazon DynamoDB
+cd dynamodb
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -104,6 +115,59 @@ Reads Delta Lake tables using `delta-standalone` (no Spark required). Resolves t
 
 ---
 
+### [Apache Pinot](pinot/)
+
+ARP/JDBC connector that exposes Apache Pinot real-time tables as Dremio SQL tables. Full predicate, aggregation, ORDER BY, and LIMIT pushdown via the Pinot JDBC driver. Suitable for time-series analytics and low-latency queries over streaming data.
+
+```bash
+./add-pinot-source.sh --name pinot --controller localhost
+./add-pinot-source.sh --name pinot_prod --controller pinot.example.com \
+  --port 9000 --user myuser --password mypassword
+```
+
+```sql
+SELECT eventType, COUNT(*) AS cnt, AVG(totalAmount) AS avg_amount
+FROM pinot.transactions
+WHERE eventTime >= 1700000000000
+GROUP BY eventType
+ORDER BY cnt DESC
+LIMIT 20;
+```
+
+**Key features:** Full SQL pushdown · real-time tables · schema discovery · TLS · username/password auth · external query
+
+---
+
+### [Amazon DynamoDB](dynamodb/)
+
+Native connector that queries DynamoDB tables directly from Dremio SQL. Uses the AWS SDK v2 with partition key equality routing to the DynamoDB Query API for efficient single-partition lookups, with Parallel Scan for full-table reads. Schema is inferred by sampling items.
+
+```bash
+# DynamoDB Local (development)
+./add-dynamodb-source.sh --name dynamodb_local \
+  --endpoint http://dynamodb-local:8000 \
+  --access-key fakeKey --secret-key fakeSecret
+
+# AWS DynamoDB (IAM role / instance profile)
+./add-dynamodb-source.sh --name dynamodb_prod --region us-east-1
+```
+
+```sql
+-- Partition key EQ → DynamoDB Query API (efficient, reads one partition)
+SELECT * FROM dynamodb_prod.orders WHERE order_id = 'o42';
+
+-- Sort key range → KeyConditionExpression
+SELECT * FROM dynamodb_prod.orders
+WHERE order_id = 'o1' AND created_at >= '2024-01-01';
+
+-- Full table → Parallel Scan
+SELECT country, COUNT(*) FROM dynamodb_prod.users GROUP BY country;
+```
+
+**Key features:** Query API routing · sort key range pushdown · FilterExpression pushdown · projection pushdown · Parallel Scan · SS/NS list types · IAM / instance profile / static key auth
+
+---
+
 ### [Splunk](splunk/)
 
 Queries Splunk indexes as SQL tables using the Splunk REST API. Translates SQL to SPL with time-range pushdown (`WHERE _time >= ...` → `earliest_time` parameter) and field-equality pushdown (`WHERE field = 'value'` → SPL filter clause). Supports Splunk on-prem and Splunk Cloud (JWT bearer tokens). Schema is inferred by sampling recent events per index.
@@ -144,6 +208,30 @@ java -jar excel-importer/jars/dremio-excel-importer.jar \
 
 ---
 
+### [Vector Distance UDF](vector-udf/)
+
+Scalar UDF library that adds 19 vector similarity, distance, and arithmetic functions to Dremio SQL. Store embeddings as `VARCHAR` columns in Iceberg, Delta, Hudi, or any Dremio-accessible table, and run semantic search queries without moving data to a dedicated vector database.
+
+```sql
+-- Semantic search: top-10 most similar documents
+SELECT id, text,
+       COSINE_SIMILARITY(embedding, '[0.12, -0.45, 0.88, ...]') AS score
+FROM my_catalog.embeddings
+ORDER BY score DESC
+LIMIT 10;
+```
+
+| Category | Functions |
+|----------|-----------|
+| Similarity / Distance | `COSINE_SIMILARITY`, `COSINE_DISTANCE`, `L2_DISTANCE`, `L2_DISTANCE_SQUARED`, `DOT_PRODUCT`, `L1_DISTANCE`, `VECTOR_DISTANCE` |
+| Arithmetic | `VECTOR_ADD`, `VECTOR_SUBTRACT`, `VECTOR_SCALE` |
+| Slicing | `VECTOR_SLICE`, `VECTOR_ELEMENT_AT` |
+| Utility | `VECTOR_NORM`, `VECTOR_NORMALIZE`, `VECTOR_DIMS`, `VECTOR_IS_VALID` |
+
+**Key features:** 19 scalar UDFs · JSON-encoded vectors (`VARCHAR`) · cosine / L2 / dot / L1 · Matryoshka slice support · no external dependencies
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -177,8 +265,11 @@ dremio-community-connectors/
 ├── cassandra/       — Apache Cassandra connector
 ├── hudi/            — Apache Hudi connector
 ├── delta/           — Delta Lake connector
+├── pinot/           — Apache Pinot connector (ARP/JDBC)
+├── dynamodb/        — Amazon DynamoDB connector (native)
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
+├── vector-udf/      — Vector similarity / distance UDF library
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

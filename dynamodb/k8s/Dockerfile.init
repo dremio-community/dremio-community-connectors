@@ -1,0 +1,21 @@
+# =============================================================================
+# Dremio Amazon DynamoDB Connector — Init Container Image
+#
+# A minimal image that holds only the plugin JAR.
+# Used as a Kubernetes init container to inject the JAR into a Dremio pod
+# WITHOUT rebuilding the full Dremio Enterprise image.
+#
+# The AWS SDK is shaded/relocated inside the fat plugin JAR — no second JAR needed.
+#
+# Build this AFTER running: mvn package -DskipTests (from the connector root)
+#
+# Build:
+#   docker build -f k8s/Dockerfile.init \
+#     -t your-registry/dremio-dynamodb-plugin-init:1.0.0 .
+# =============================================================================
+
+FROM alpine:3.19
+
+COPY target/dremio-dynamodb-connector-*-plugin.jar /plugin/dremio-dynamodb-connector-plugin.jar
+
+CMD ["cp", "/plugin/dremio-dynamodb-connector-plugin.jar", "/opt/dremio/jars/3rdparty/"]
