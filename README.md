@@ -4,6 +4,8 @@ Community-built storage plugins for [Dremio](https://www.dremio.com/) — adding
 
 Each connector is a self-contained Dremio storage plugin that installs as a JAR into `jars/3rdparty/` and exposes its data source as SQL tables in the Dremio catalog.
 
+> **Looking for UDF libraries?** Vector, geospatial, and other SQL function extensions live in the companion repo: [dremio-community/dremio-community-udfs](https://github.com/dremio-community/dremio-community-udfs)
+
 ---
 
 ## Connectors
@@ -19,7 +21,6 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
-| [Vector Distance UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 26 functions |
 
 ---
 
@@ -208,31 +209,6 @@ java -jar excel-importer/jars/dremio-excel-importer.jar \
 
 ---
 
-### [Vector Distance UDF](vector-udf/)
-
-Scalar UDF library that adds 19 vector similarity, distance, and arithmetic functions to Dremio SQL. Store embeddings as `VARCHAR` columns in Iceberg, Delta, Hudi, or any Dremio-accessible table, and run semantic search queries without moving data to a dedicated vector database.
-
-```sql
--- Semantic search: top-10 most similar documents
-SELECT id, text,
-       COSINE_SIMILARITY(embedding, '[0.12, -0.45, 0.88, ...]') AS score
-FROM my_catalog.embeddings
-ORDER BY score DESC
-LIMIT 10;
-```
-
-| Category | Functions |
-|----------|-----------|
-| Similarity / Distance | `COSINE_SIMILARITY`, `COSINE_DISTANCE`, `L2_DISTANCE`, `L2_DISTANCE_SQUARED`, `DOT_PRODUCT`, `L1_DISTANCE`, `CHEBYSHEV_DISTANCE`, `MINKOWSKI_DISTANCE`, `VECTOR_DISTANCE` |
-| Arithmetic | `VECTOR_ADD`, `VECTOR_SUBTRACT`, `VECTOR_MULTIPLY`, `VECTOR_SCALE`, `VECTOR_CONCAT`, `VECTOR_LERP` |
-| Scalar Reductions | `VECTOR_NORM`, `VECTOR_DIMS`, `VECTOR_SUM`, `VECTOR_MAX_ELEMENT`, `VECTOR_MIN_ELEMENT` |
-| Transformations | `VECTOR_NORMALIZE`, `VECTOR_SOFTMAX`, `VECTOR_CLIP`, `VECTOR_SLICE` |
-| Utility | `VECTOR_ELEMENT_AT`, `VECTOR_IS_VALID` |
-
-**Key features:** 26 scalar UDFs · JSON-encoded vectors (`VARCHAR`) · cosine / L2 / L1 / L∞ / Minkowski · Hadamard product · multi-modal concat · LERP · softmax · clip · Matryoshka slice · no external dependencies
-
----
-
 ## Requirements
 
 | Requirement | Details |
@@ -270,7 +246,6 @@ dremio-community-connectors/
 ├── dynamodb/        — Amazon DynamoDB connector (native)
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
-├── vector-udf/      — Vector similarity / distance UDF library
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
