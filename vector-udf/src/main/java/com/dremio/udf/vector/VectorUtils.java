@@ -287,11 +287,169 @@ public final class VectorUtils {
       case "l1":
       case "manhattan":
         return l1Distance(a, b);
+      case "chebyshev":
+      case "linf":
+      case "l_inf":
+        return chebyshevDistance(a, b);
       default:
         throw new IllegalArgumentException(
             "Unknown vector metric: '" + metric + "'. " +
-            "Supported: cosine, cosine_distance, l2, l2_squared, dot, l1");
+            "Supported: cosine, cosine_distance, l2, l2_squared, dot, l1, chebyshev");
     }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Additional distance metrics
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Chebyshev (L∞) distance: max( |a_i - b_i| )
+   * Range: [0, ∞). The maximum absolute difference across any single dimension.
+   * Useful for outlier detection — a single extreme dimension dominates the distance.
+   */
+  public static double chebyshevDistance(double[] a, double[] b) {
+    checkSameDimensions(a, b);
+    double max = 0;
+    for (int i = 0; i < a.length; i++) {
+      double diff = Math.abs(a[i] - b[i]);
+      if (diff > max) max = diff;
+    }
+    return max;
+  }
+
+  /**
+   * Minkowski distance: ( sum( |a_i - b_i|^p ) )^(1/p)
+   * Generalizes L1 (p=1), L2 (p=2), and approaches Chebyshev as p→∞.
+   * p must be > 0.
+   */
+  public static double minkowskiDistance(double[] a, double[] b, double p) {
+    checkSameDimensions(a, b);
+    if (p <= 0) {
+      throw new IllegalArgumentException("Minkowski p must be > 0, got: " + p);
+    }
+    double sum = 0;
+    for (int i = 0; i < a.length; i++) {
+      sum += Math.pow(Math.abs(a[i] - b[i]), p);
+    }
+    return Math.pow(sum, 1.0 / p);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Additional arithmetic operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Element-wise (Hadamard) product: result[i] = a[i] * b[i]
+   * Useful for attention weighting, feature gating, and combining two embeddings
+   * component-by-component.
+   */
+  public static double[] multiply(double[] a, double[] b) {
+    checkSameDimensions(a, b);
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) result[i] = a[i] * b[i];
+    return result;
+  }
+
+  /**
+   * Concatenate two vectors: result = [a_0,...,a_n, b_0,...,b_m]
+   * Fundamental operation for multi-modal embedding fusion — e.g., combining
+   * a 768-dim text embedding with a 512-dim image embedding into a 1280-dim vector.
+   */
+  public static double[] concat(double[] a, double[] b) {
+    double[] result = new double[a.length + b.length];
+    System.arraycopy(a, 0, result, 0, a.length);
+    System.arraycopy(b, 0, result, a.length, b.length);
+    return result;
+  }
+
+  /**
+   * Linear interpolation: result[i] = a[i] + t * (b[i] - a[i])
+   * t=0 returns a, t=1 returns b, t=0.5 returns the midpoint.
+   * Supports t outside [0, 1] for extrapolation.
+   */
+  public static double[] lerp(double[] a, double[] b, double t) {
+    checkSameDimensions(a, b);
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) {
+      result[i] = a[i] + t * (b[i] - a[i]);
+    }
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Scalar reductions (vector → scalar)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Sum of all elements: sum( a_i )
+   */
+  public static double sum(double[] a) {
+    double s = 0;
+    for (double v : a) s += v;
+    return s;
+  }
+
+  /**
+   * Maximum element value.
+   */
+  public static double max(double[] a) {
+    if (a.length == 0) {
+      throw new IllegalArgumentException("Cannot compute max of an empty vector");
+    }
+    double m = a[0];
+    for (int i = 1; i < a.length; i++) if (a[i] > m) m = a[i];
+    return m;
+  }
+
+  /**
+   * Minimum element value.
+   */
+  public static double min(double[] a) {
+    if (a.length == 0) {
+      throw new IllegalArgumentException("Cannot compute min of an empty vector");
+    }
+    double m = a[0];
+    for (int i = 1; i < a.length; i++) if (a[i] < m) m = a[i];
+    return m;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Transformations (vector → vector)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Softmax: result[i] = exp(a[i]) / sum( exp(a[j]) )
+   * Uses the max-subtraction trick for numerical stability.
+   * Output sums to 1.0 — converts raw scores/logits to a probability distribution.
+   */
+  public static double[] softmax(double[] a) {
+    if (a.length == 0) return new double[0];
+    double maxVal = a[0];
+    for (int i = 1; i < a.length; i++) if (a[i] > maxVal) maxVal = a[i];
+    double sumExp = 0;
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) {
+      result[i] = Math.exp(a[i] - maxVal);
+      sumExp += result[i];
+    }
+    for (int i = 0; i < a.length; i++) result[i] /= sumExp;
+    return result;
+  }
+
+  /**
+   * Clip (clamp) all elements to [minVal, maxVal].
+   * Elements below minVal become minVal; elements above maxVal become maxVal.
+   */
+  public static double[] clip(double[] a, double minVal, double maxVal) {
+    if (minVal > maxVal) {
+      throw new IllegalArgumentException(
+          "clip: minVal (" + minVal + ") must be <= maxVal (" + maxVal + ")");
+    }
+    double[] result = new double[a.length];
+    for (int i = 0; i < a.length; i++) {
+      result[i] = Math.max(minVal, Math.min(maxVal, a[i]));
+    }
+    return result;
   }
 
   // ---------------------------------------------------------------------------
