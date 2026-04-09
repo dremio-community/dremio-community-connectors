@@ -19,7 +19,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
-| [Vector Distance UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 19 functions |
+| [Vector Distance UDF](vector-udf/) | — (SQL UDF library) | — | ✅ 26 functions |
 
 ---
 
@@ -223,12 +223,13 @@ LIMIT 10;
 
 | Category | Functions |
 |----------|-----------|
-| Similarity / Distance | `COSINE_SIMILARITY`, `COSINE_DISTANCE`, `L2_DISTANCE`, `L2_DISTANCE_SQUARED`, `DOT_PRODUCT`, `L1_DISTANCE`, `VECTOR_DISTANCE` |
-| Arithmetic | `VECTOR_ADD`, `VECTOR_SUBTRACT`, `VECTOR_SCALE` |
-| Slicing | `VECTOR_SLICE`, `VECTOR_ELEMENT_AT` |
-| Utility | `VECTOR_NORM`, `VECTOR_NORMALIZE`, `VECTOR_DIMS`, `VECTOR_IS_VALID` |
+| Similarity / Distance | `COSINE_SIMILARITY`, `COSINE_DISTANCE`, `L2_DISTANCE`, `L2_DISTANCE_SQUARED`, `DOT_PRODUCT`, `L1_DISTANCE`, `CHEBYSHEV_DISTANCE`, `MINKOWSKI_DISTANCE`, `VECTOR_DISTANCE` |
+| Arithmetic | `VECTOR_ADD`, `VECTOR_SUBTRACT`, `VECTOR_MULTIPLY`, `VECTOR_SCALE`, `VECTOR_CONCAT`, `VECTOR_LERP` |
+| Scalar Reductions | `VECTOR_NORM`, `VECTOR_DIMS`, `VECTOR_SUM`, `VECTOR_MAX_ELEMENT`, `VECTOR_MIN_ELEMENT` |
+| Transformations | `VECTOR_NORMALIZE`, `VECTOR_SOFTMAX`, `VECTOR_CLIP`, `VECTOR_SLICE` |
+| Utility | `VECTOR_ELEMENT_AT`, `VECTOR_IS_VALID` |
 
-**Key features:** 19 scalar UDFs · JSON-encoded vectors (`VARCHAR`) · cosine / L2 / dot / L1 · Matryoshka slice support · no external dependencies
+**Key features:** 26 scalar UDFs · JSON-encoded vectors (`VARCHAR`) · cosine / L2 / L1 / L∞ / Minkowski · Hadamard product · multi-modal concat · LERP · softmax · clip · Matryoshka slice · no external dependencies
 
 ---
 
