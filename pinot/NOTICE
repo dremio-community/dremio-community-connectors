@@ -1,0 +1,39 @@
+Dremio Apache Pinot Connector
+Community connector — Apache License 2.0
+
+This product includes the following third-party software:
+
+────────────────────────────────────────────────────────────
+Apache Pinot JDBC Driver
+  Artifact:  org.apache.pinot:pinot-jdbc-client
+  Version:   1.4.0
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/pinot
+
+  The Pinot JDBC driver is bundled in the plugin JAR (two-JAR deploy:
+  plugin JAR + driver JAR placed in /opt/dremio/jars/3rdparty/).
+
+────────────────────────────────────────────────────────────
+Dremio Sabot Kernel and Plugin API
+  Artifact:  com.dremio:dremio-sabot-kernel (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  Note: Dremio JARs are used at compile time only and are not bundled
+  in the connector distribution. They must be present in the target
+  Dremio installation.
+
+────────────────────────────────────────────────────────────
+Dremio ARP (Abstract Relational Plugin) Framework
+  Artifact:  com.dremio:dremio-connector (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/dremio/dremio-oss
+
+  The connector uses Dremio's ARP/JDBC framework defined in
+  pinot-arp.yaml for SQL dialect and pushdown configuration.
+
+────────────────────────────────────────────────────────────
+Apache Arrow
+  Artifact:  org.apache.arrow:arrow-vector (compile-time only)
+  License:   Apache License 2.0
+  Source:    https://github.com/apache/arrow

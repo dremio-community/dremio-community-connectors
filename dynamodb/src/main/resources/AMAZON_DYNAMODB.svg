@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60">
+  <rect width="60" height="60" rx="8" fill="#2563EB"/>
+  <!-- DynamoDB simplified icon: table/cylinder shape -->
+  <ellipse cx="30" cy="16" rx="16" ry="6" fill="#93C5FD"/>
+  <rect x="14" y="16" width="32" height="22" fill="#BFDBFE"/>
+  <ellipse cx="30" cy="38" rx="16" ry="6" fill="#93C5FD"/>
+  <!-- Lines suggesting data rows -->
+  <line x1="14" y1="22" x2="46" y2="22" stroke="#2563EB" stroke-width="1"/>
+  <line x1="14" y1="28" x2="46" y2="28" stroke="#2563EB" stroke-width="1"/>
+  <line x1="14" y1="34" x2="46" y2="34" stroke="#2563EB" stroke-width="1"/>
+  <!-- "D" letter -->
+  <text x="22" y="43" font-family="Arial" font-size="10" font-weight="bold" fill="#1E3A8A">DB</text>
+</svg>
