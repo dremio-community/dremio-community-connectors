@@ -20,15 +20,41 @@ import org.apache.arrow.vector.holders.IntHolder;
  *
  * Available functions:
  *
- *   COSINE_SIMILARITY(vec1, vec2)          → DOUBLE  [-1, 1]
- *   COSINE_DISTANCE(vec1, vec2)            → DOUBLE  [0, 2]
- *   L2_DISTANCE(vec1, vec2)               → DOUBLE  [0, ∞)
- *   L2_DISTANCE_SQUARED(vec1, vec2)       → DOUBLE  [0, ∞)  (faster, no sqrt)
- *   DOT_PRODUCT(vec1, vec2)               → DOUBLE
- *   L1_DISTANCE(vec1, vec2)               → DOUBLE  [0, ∞)
- *   VECTOR_NORM(vec)                      → DOUBLE
- *   VECTOR_DIMS(vec)                      → INT
- *   VECTOR_DISTANCE(vec1, vec2, metric)   → DOUBLE  (generic dispatcher)
+ *   Distance / Similarity
+ *   COSINE_SIMILARITY(vec1, vec2)              → DOUBLE  [-1, 1]
+ *   COSINE_DISTANCE(vec1, vec2)                → DOUBLE  [0, 2]
+ *   L2_DISTANCE(vec1, vec2)                   → DOUBLE  [0, ∞)
+ *   L2_DISTANCE_SQUARED(vec1, vec2)           → DOUBLE  [0, ∞)  (faster, no sqrt)
+ *   DOT_PRODUCT(vec1, vec2)                   → DOUBLE
+ *   L1_DISTANCE(vec1, vec2)                   → DOUBLE  [0, ∞)
+ *   CHEBYSHEV_DISTANCE(vec1, vec2)            → DOUBLE  [0, ∞)  L∞ distance
+ *   MINKOWSKI_DISTANCE(vec1, vec2, p)         → DOUBLE  [0, ∞)  generalized Lp
+ *   VECTOR_DISTANCE(vec1, vec2, metric)       → DOUBLE  (generic dispatcher)
+ *
+ *   Arithmetic (vector → vector)
+ *   VECTOR_ADD(vec1, vec2)                    → VARCHAR  element-wise addition
+ *   VECTOR_SUBTRACT(vec1, vec2)               → VARCHAR  element-wise subtraction
+ *   VECTOR_MULTIPLY(vec1, vec2)               → VARCHAR  element-wise (Hadamard) product
+ *   VECTOR_SCALE(vec, scalar)                 → VARCHAR  scalar multiplication
+ *   VECTOR_CONCAT(vec1, vec2)                 → VARCHAR  concatenate two vectors
+ *   VECTOR_LERP(vec1, vec2, t)                → VARCHAR  linear interpolation
+ *
+ *   Scalar reductions (vector → scalar)
+ *   VECTOR_NORM(vec)                          → DOUBLE   L2 magnitude
+ *   VECTOR_DIMS(vec)                          → INT      element count
+ *   VECTOR_SUM(vec)                           → DOUBLE   sum of elements
+ *   VECTOR_MAX_ELEMENT(vec)                   → DOUBLE   maximum element
+ *   VECTOR_MIN_ELEMENT(vec)                   → DOUBLE   minimum element
+ *
+ *   Transformations (vector → vector)
+ *   VECTOR_NORMALIZE(vec)                     → VARCHAR  unit-normalize
+ *   VECTOR_SOFTMAX(vec)                       → VARCHAR  softmax probabilities
+ *   VECTOR_CLIP(vec, min, max)                → VARCHAR  clamp elements
+ *   VECTOR_SLICE(vec, start, end)             → VARCHAR  sub-vector
+ *
+ *   Utility
+ *   VECTOR_ELEMENT_AT(vec, index)             → DOUBLE   single element
+ *   VECTOR_IS_VALID(vec)                      → INT      1 if parseable, else 0
  *
  * Example queries:
  *
@@ -517,6 +543,343 @@ public class VectorDistanceFunctions {
       String s   = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
       double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
       out.value  = com.dremio.udf.vector.VectorUtils.elementAt(a, index.value);
+    }
+  }
+
+  // ── CHEBYSHEV_DISTANCE ────────────────────────────────────────────────────
+
+  /**
+   * Chebyshev (L∞) distance: max( |a_i - b_i| )
+   * The maximum absolute difference across any single dimension.
+   * Useful when a single extreme dimension should dominate the distance score.
+   *
+   *   CHEBYSHEV_DISTANCE('[1.0,2.0,3.0]', '[1.5,2.5,3.5]')  →  0.5
+   */
+  @FunctionTemplate(
+      name = "chebyshev_distance",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class ChebyshevDistance implements SimpleFunction {
+    @Param  NullableVarCharHolder vec1;
+    @Param  NullableVarCharHolder vec2;
+    @Output NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      out.value = com.dremio.udf.vector.VectorUtils.chebyshevDistance(a, b);
+    }
+  }
+
+  // ── MINKOWSKI_DISTANCE ────────────────────────────────────────────────────
+
+  /**
+   * Minkowski (Lp) distance: ( sum( |a_i - b_i|^p ) )^(1/p)
+   * Generalizes L1 (p=1.0), L2 (p=2.0). p must be > 0.
+   *
+   *   MINKOWSKI_DISTANCE('[1.0,2.0]', '[4.0,6.0]', 2.0)  →  5.0   (same as L2)
+   *   MINKOWSKI_DISTANCE('[1.0,2.0]', '[4.0,6.0]', 1.0)  →  7.0   (same as L1)
+   */
+  @FunctionTemplate(
+      name = "minkowski_distance",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class MinkowskiDistance implements SimpleFunction {
+    @Param  NullableVarCharHolder vec1;
+    @Param  NullableVarCharHolder vec2;
+    @Param  Float8Holder          p;
+    @Output NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      out.value = com.dremio.udf.vector.VectorUtils.minkowskiDistance(a, b, p.value);
+    }
+  }
+
+  // ── VECTOR_MULTIPLY ───────────────────────────────────────────────────────
+
+  /**
+   * Element-wise (Hadamard) product: result[i] = a[i] * b[i]
+   * Useful for attention weighting, feature gating, and component-wise fusion
+   * of two same-dimensional embeddings.
+   *
+   *   VECTOR_MULTIPLY('[1.0,2.0,3.0]', '[2.0,3.0,4.0]')  →  '[2.0,6.0,12.0]'
+   */
+  @FunctionTemplate(
+      name = "vector_multiply",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorMultiply implements SimpleFunction {
+    @Param   NullableVarCharHolder vec1;
+    @Param   NullableVarCharHolder vec2;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a  = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b  = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.multiply(a, b));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_CONCAT ─────────────────────────────────────────────────────────
+
+  /**
+   * Concatenate two vectors: result = [a_0,...,a_n, b_0,...,b_m]
+   * The result has dims(a) + dims(b) dimensions.
+   * Essential for multi-modal embedding fusion — e.g. combining a 768-dim text
+   * embedding with a 512-dim image embedding into a single 1280-dim vector.
+   *
+   *   VECTOR_CONCAT('[1.0,2.0]', '[3.0,4.0,5.0]')  →  '[1.0,2.0,3.0,4.0,5.0]'
+   */
+  @FunctionTemplate(
+      name = "vector_concat",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorConcat implements SimpleFunction {
+    @Param   NullableVarCharHolder vec1;
+    @Param   NullableVarCharHolder vec2;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a  = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b  = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.concat(a, b));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_LERP ───────────────────────────────────────────────────────────
+
+  /**
+   * Linear interpolation: result[i] = a[i] + t * (b[i] - a[i])
+   * t=0 returns a, t=1 returns b, t=0.5 returns the midpoint.
+   * Values of t outside [0, 1] extrapolate beyond the two vectors.
+   *
+   *   VECTOR_LERP('[0.0,0.0]', '[10.0,10.0]', 0.3)  →  '[3.0,3.0]'
+   *
+   * Typical use: explore the embedding space between two concepts, or generate
+   * interpolated "virtual" documents for data augmentation.
+   */
+  @FunctionTemplate(
+      name = "vector_lerp",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorLerp implements SimpleFunction {
+    @Param   NullableVarCharHolder vec1;
+    @Param   NullableVarCharHolder vec2;
+    @Param   Float8Holder          t;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] b1 = new byte[vec1.end - vec1.start]; vec1.buffer.getBytes(vec1.start, b1);
+      byte[] b2 = new byte[vec2.end - vec2.start]; vec2.buffer.getBytes(vec2.start, b2);
+      String s1 = new String(b1, java.nio.charset.StandardCharsets.UTF_8);
+      String s2 = new String(b2, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a  = com.dremio.udf.vector.VectorUtils.parseVector(s1);
+      double[] b  = com.dremio.udf.vector.VectorUtils.parseVector(s2);
+      String json = com.dremio.udf.vector.VectorUtils.toJson(
+                      com.dremio.udf.vector.VectorUtils.lerp(a, b, t.value));
+      byte[] bOut = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_SUM ────────────────────────────────────────────────────────────
+
+  /**
+   * Sum of all elements in the vector.
+   *   VECTOR_SUM('[1.0,2.0,3.0,4.0]')  →  10.0
+   *
+   * Useful for: sanity checks on probability vectors (should sum to ~1.0 after
+   * softmax), computing mean-pooled features, or detecting all-zero vectors.
+   */
+  @FunctionTemplate(
+      name = "vector_sum",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorSum implements SimpleFunction {
+    @Param  NullableVarCharHolder vec;
+    @Output NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b);
+      String s = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      out.value  = com.dremio.udf.vector.VectorUtils.sum(a);
+    }
+  }
+
+  // ── VECTOR_MAX_ELEMENT ────────────────────────────────────────────────────
+
+  /**
+   * Maximum element value in the vector.
+   *   VECTOR_MAX_ELEMENT('[1.0,-5.0,3.0,2.0]')  →  3.0
+   *
+   * Useful for finding peak activation dimensions in embedding analysis,
+   * or checking that no element exceeds an expected bound.
+   */
+  @FunctionTemplate(
+      name = "vector_max_element",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorMaxElement implements SimpleFunction {
+    @Param  NullableVarCharHolder vec;
+    @Output NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b);
+      String s = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      out.value  = com.dremio.udf.vector.VectorUtils.max(a);
+    }
+  }
+
+  // ── VECTOR_MIN_ELEMENT ────────────────────────────────────────────────────
+
+  /**
+   * Minimum element value in the vector.
+   *   VECTOR_MIN_ELEMENT('[1.0,-5.0,3.0,2.0]')  →  -5.0
+   *
+   * Useful for outlier detection and pre-clip range inspection.
+   */
+  @FunctionTemplate(
+      name = "vector_min_element",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorMinElement implements SimpleFunction {
+    @Param  NullableVarCharHolder vec;
+    @Output NullableFloat8Holder  out;
+
+    public void setup() {}
+
+    public void eval() {
+      out.isSet = 1;
+      byte[] b = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, b);
+      String s = new String(b, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      out.value  = com.dremio.udf.vector.VectorUtils.min(a);
+    }
+  }
+
+  // ── VECTOR_SOFTMAX ────────────────────────────────────────────────────────
+
+  /**
+   * Softmax: result[i] = exp(a[i]) / sum( exp(a[j]) )
+   * Output sums to 1.0 — converts raw logit/score vectors to probability distributions.
+   * Uses the max-subtraction trick for numerical stability with large values.
+   *
+   *   VECTOR_SOFTMAX('[1.0,2.0,3.0]')  →  '[0.09003057..., 0.24472847..., 0.66524096...]'
+   *   VECTOR_SUM(VECTOR_SOFTMAX(v))    →  1.0  (always)
+   *
+   * Typical use: post-process classification model output logits stored in Iceberg.
+   */
+  @FunctionTemplate(
+      name = "vector_softmax",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorSoftmax implements SimpleFunction {
+    @Param   NullableVarCharHolder vec;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] bIn = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, bIn);
+      String s = new String(bIn, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a      = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      double[] result = com.dremio.udf.vector.VectorUtils.softmax(a);
+      String   json   = com.dremio.udf.vector.VectorUtils.toJson(result);
+      byte[]   bOut   = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
+    }
+  }
+
+  // ── VECTOR_CLIP ───────────────────────────────────────────────────────────
+
+  /**
+   * Clamp (clip) all elements to the range [minVal, maxVal].
+   * Elements below minVal become minVal; elements above maxVal become maxVal.
+   *
+   *   VECTOR_CLIP('[-2.0, 0.5, 3.0, 1.5]', 0.0, 1.0)  →  '[0.0,0.5,1.0,1.0]'
+   *
+   * Typical use: preprocessing before comparing embeddings with different
+   * normalization schemes, or enforcing valid probability bounds.
+   */
+  @FunctionTemplate(
+      name = "vector_clip",
+      scope = FunctionTemplate.FunctionScope.SIMPLE,
+      nulls = FunctionTemplate.NullHandling.NULL_IF_NULL)
+  public static class VectorClip implements SimpleFunction {
+    @Param   NullableVarCharHolder vec;
+    @Param   Float8Holder          minVal;
+    @Param   Float8Holder          maxVal;
+    @Inject  ArrowBuf              buf;
+    @Output  NullableVarCharHolder out;
+
+    public void setup() {}
+
+    public void eval() {
+      byte[] bIn = new byte[vec.end - vec.start]; vec.buffer.getBytes(vec.start, bIn);
+      String s = new String(bIn, java.nio.charset.StandardCharsets.UTF_8);
+      double[] a      = com.dremio.udf.vector.VectorUtils.parseVector(s);
+      double[] result = com.dremio.udf.vector.VectorUtils.clip(a, minVal.value, maxVal.value);
+      String   json   = com.dremio.udf.vector.VectorUtils.toJson(result);
+      byte[]   bOut   = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+      buf = buf.reallocIfNeeded(bOut.length);
+      buf.setBytes(0, bOut);
+      out.isSet = 1; out.start = 0; out.end = bOut.length; out.buffer = buf;
     }
   }
 }
