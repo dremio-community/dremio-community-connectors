@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.dremio.plugins</groupId>
+  <artifactId>dremio-dynamodb-connector</artifactId>
+  <version>1.0.0-SNAPSHOT</version>
+  <packaging>jar</packaging>
+
+  <name>Dremio Amazon DynamoDB Connector</name>
+  <description>
+    A Dremio storage plugin that adds native read support for Amazon DynamoDB tables.
+    Uses AWS SDK v2 for DynamoDB access, supports parallel segment scans, schema
+    inference by sampling, FilterExpression and Query-path predicate pushdown.
+  </description>
+
+  <developers>
+    <developer>
+      <id>mshainman</id>
+      <name>Mark Shainman</name>
+      <roles>
+        <role>architect</role>
+        <role>developer</role>
+      </roles>
+    </developer>
+  </developers>
+
+  <properties>
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <dremio.version>26.0.5-202509091642240013-f5051a07</dremio.version>
+    <arrow.version>18.1.1-20250709131625-66bbaf1fd7-dremio</arrow.version>
+    <calcite.version>1.22.0-202501311721330426-8b30dab9</calcite.version>
+    <awssdk.version>2.28.0</awssdk.version>
+  </properties>
+
+  <repositories>
+    <repository>
+      <id>dremio-public</id>
+      <name>Dremio Public Maven Repository</name>
+      <url>https://maven.dremio.com/public/</url>
+      <releases><enabled>true</enabled></releases>
+      <snapshots><enabled>false</enabled></snapshots>
+    </repository>
+  </repositories>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>software.amazon.awssdk</groupId>
+        <artifactId>bom</artifactId>
+        <version>${awssdk.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+
+    <!-- ================================================================
+         DREMIO PLUGIN API (provided — Dremio supplies at runtime)
+         ================================================================ -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-kernel</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-connector</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.arrow</groupId>
+      <artifactId>arrow-vector</artifactId>
+      <version>${arrow.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-core</artifactId>
+      <version>${calcite.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.calcite</groupId>
+      <artifactId>calcite-linq4j</artifactId>
+      <version>${calcite.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>javax.inject</groupId>
+      <artifactId>javax.inject</artifactId>
+      <version>1</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>2.15.3</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.15.3</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.google.guava</groupId>
+      <artifactId>guava</artifactId>
+      <version>33.4.0-jre</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-common-core</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.dremio.service</groupId>
+      <artifactId>dremio-services-namespace</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-api</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-core</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.protostuff</groupId>
+      <artifactId>protostuff-runtime</artifactId>
+      <version>1.4.4</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- SchemaPath, ExecutionSetupException, GraphValue -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-logical</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <!-- BatchSchema -->
+    <dependency>
+      <groupId>com.dremio</groupId>
+      <artifactId>dremio-sabot-vector-tools</artifactId>
+      <version>${dremio.version}</version>
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- ================================================================
+         AWS SDK v2 for DynamoDB — bundled in the fat JAR.
+         Uses url-connection-client (no Netty) for lightweight sync I/O.
+         ================================================================ -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>dynamodb</artifactId>
+      <exclusions>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>netty-nio-client</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>software.amazon.awssdk</groupId>
+          <artifactId>apache-client</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>url-connection-client</artifactId>
+    </dependency>
+
+    <!-- ================================================================
+         TEST
+         ================================================================ -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <version>1.7.36</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.0</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <shadedArtifactAttached>true</shadedArtifactAttached>
+              <shadedClassifierName>plugin</shadedClassifierName>
+              <relocations>
+                <relocation>
+                  <pattern>software.amazon.awssdk</pattern>
+                  <shadedPattern>shaded.software.amazon.awssdk</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>software.amazon.eventstream</pattern>
+                  <shadedPattern>shaded.software.amazon.eventstream</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.reactivestreams</pattern>
+                  <shadedPattern>shaded.org.reactivestreams</shadedPattern>
+                </relocation>
+              </relocations>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-annotations</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-core</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>com.fasterxml.jackson.core:jackson-databind</artifact>
+                  <excludes><exclude>**</exclude></excludes>
+                </filter>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>org/slf4j/impl/StaticLoggerBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMDCBinder.class</exclude>
+                    <exclude>org/slf4j/impl/StaticMarkerBinder.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <version>3.1.2</version>
+        <configuration>
+          <argLine>
+            --add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.io=ALL-UNNAMED
+          </argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

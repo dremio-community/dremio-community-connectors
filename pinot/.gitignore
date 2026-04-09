@@ -1,0 +1,7 @@
+target/
+*.class
+*.iml
+.idea/
+.DS_Store
+*.jar
+!jars/
