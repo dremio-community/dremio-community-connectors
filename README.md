@@ -20,6 +20,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Pinot](pinot/) | Pinot real-time tables | Username/password, TLS | ✅ 10/10 tests passing |
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
+| [Salesforce](https://github.com/dremio-community/dremio-salesforce-connector) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
@@ -55,6 +56,11 @@ cd pinot
 
 # Amazon DynamoDB
 cd dynamodb
+./install.sh --docker try-dremio --prebuilt
+
+# Salesforce (REST) — standalone repo
+git clone https://github.com/dremio-community/dremio-salesforce-connector
+cd dremio-salesforce-connector
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -187,6 +193,35 @@ LIMIT 500;
 ```
 
 **Key features:** SPL time pushdown · field-equality pushdown · LIMIT pushdown · schema inference · Splunk Cloud · bearer token auth · job cleanup on cancel
+
+---
+
+### [Salesforce (REST)](https://github.com/dremio-community/dremio-salesforce-connector)
+
+Native connector that queries Salesforce SObjects as SQL tables using the REST API and SOQL. OAuth2 password-grant authentication with Connected App credentials. Auto-discovers all accessible SObjects, pushes WHERE clauses as SOQL filters, and reads data via paginated queryMore cursors. No JDBC driver required.
+
+```bash
+./add-salesforce-source.sh --name salesforce \
+  --sf-user you@example.com --sf-pass yourpassword \
+  --sf-token yourSecurityToken \
+  --client-id 3MVG... --client-secret ABC123
+```
+
+```sql
+SELECT Id, Name, Amount, StageName, CloseDate
+FROM salesforce.Opportunity
+WHERE StageName = 'Closed Won'
+  AND CloseDate >= DATE '2026-01-01';
+
+-- Cross-source JOIN: Salesforce + Iceberg
+SELECT s.Id, s.Name, i.segment
+FROM salesforce.Account s
+JOIN iceberg_catalog.crm.segments i ON s.Id = i.sf_account_id;
+```
+
+**Key features:** SOQL WHERE pushdown · parallel LIMIT+OFFSET splits · auto-discovery · OAuth2 token refresh · sandbox support · object exclusion · full type mapping
+
+> **Note:** Lives in its own repo: [dremio-community/dremio-salesforce-connector](https://github.com/dremio-community/dremio-salesforce-connector)
 
 ---
 
