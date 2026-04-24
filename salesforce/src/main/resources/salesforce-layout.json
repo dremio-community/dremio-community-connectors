@@ -1,0 +1,103 @@
+{
+  "sourceType": "SALESFORCE_REST",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.loginUrl",
+            "label": "Login URL",
+            "placeholder": "https://login.salesforce.com",
+            "tooltip": "Use https://test.salesforce.com for sandboxes",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.username",
+            "label": "Username",
+            "placeholder": "user@example.com",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.password",
+            "label": "Password",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.securityToken",
+            "label": "Security Token",
+            "tooltip": "Appended to password in OAuth call. Leave blank if your org IP is trusted.",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.clientId",
+            "label": "Connected App Consumer Key",
+            "tooltip": "The client_id from your Salesforce Connected App",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.clientSecret",
+            "label": "Connected App Consumer Secret",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.apiVersion",
+            "label": "API Version",
+            "placeholder": "59.0",
+            "tooltip": "Salesforce REST API version to use",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.recordsPerPage",
+            "label": "Records Per Page",
+            "placeholder": "2000",
+            "tooltip": "Number of records fetched per Salesforce API call (max 2000)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.splitParallelism",
+            "label": "Parallel Splits",
+            "placeholder": "4",
+            "tooltip": "Number of parallel reader threads for scanning",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          },
+          {
+            "type": "text",
+            "propName": "config.excludedObjects",
+            "label": "Excluded Objects",
+            "placeholder": "ContentVersion,FeedItem",
+            "tooltip": "Comma-separated list of SObject API names to hide from the dataset listing",
+            "size": "full"
+          }
+        ]
+      }
+    ]
+  }
+}

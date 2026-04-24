@@ -1,0 +1,109 @@
+name: Build Dremio Salesforce Connector
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v4
+        with:
+          java-version: '11'
+          distribution: 'temurin'
+
+      # ---------------------------------------------------------------
+      # Pull Dremio image and extract JARs needed for compilation
+      # ---------------------------------------------------------------
+      - name: Pull Dremio Docker image
+        run: docker pull dremio/dremio-oss:26.0
+
+      - name: Extract Dremio JARs
+        run: |
+          CONTAINER=$(docker create dremio/dremio-oss:26.0)
+          mkdir -p /tmp/dremio-jars
+          docker cp "${CONTAINER}:/opt/dremio/jars/." /tmp/dremio-jars/
+          docker rm "${CONTAINER}"
+          echo "Extracted JARs:"
+          ls /tmp/dremio-jars/ | head -30
+
+      # ---------------------------------------------------------------
+      # Install required JARs into local Maven repository
+      # ---------------------------------------------------------------
+      - name: Install dremio-common JAR
+        run: |
+          JAR=$(ls /tmp/dremio-jars/dremio-common-*.jar | head -1)
+          if [ -z "$JAR" ]; then echo "dremio-common not found"; exit 1; fi
+          VERSION=$(echo "$JAR" | sed 's/.*dremio-common-\(.*\)\.jar/\1/')
+          mvn install:install-file \
+            -Dfile="$JAR" \
+            -DgroupId=com.dremio \
+            -DartifactId=dremio-common \
+            -Dversion="$VERSION" \
+            -Dpackaging=jar
+
+      - name: Install dremio-sabot-kernel JAR
+        run: |
+          JAR=$(ls /tmp/dremio-jars/dremio-sabot-kernel-*.jar | head -1)
+          if [ -z "$JAR" ]; then echo "dremio-sabot-kernel not found"; exit 1; fi
+          VERSION=$(echo "$JAR" | sed 's/.*dremio-sabot-kernel-\(.*\)\.jar/\1/')
+          mvn install:install-file \
+            -Dfile="$JAR" \
+            -DgroupId=com.dremio.sabot \
+            -DartifactId=dremio-sabot-kernel \
+            -Dversion="$VERSION" \
+            -Dpackaging=jar
+
+      - name: Install Arrow JARs
+        run: |
+          for JAR in /tmp/dremio-jars/arrow-vector-*.jar \
+                     /tmp/dremio-jars/arrow-memory-core-*.jar; do
+            [ -f "$JAR" ] || continue
+            BASENAME=$(basename "$JAR" .jar)
+            ARTIFACTID=$(echo "$BASENAME" | sed 's/-[0-9].*//')
+            VERSION=$(echo "$BASENAME" | sed "s/${ARTIFACTID}-//")
+            mvn install:install-file \
+              -Dfile="$JAR" \
+              -DgroupId=org.apache.arrow \
+              -DartifactId="$ARTIFACTID" \
+              -Dversion="$VERSION" \
+              -Dpackaging=jar
+          done
+
+      - name: Install Jackson JARs
+        run: |
+          for JAR in /tmp/dremio-jars/jackson-databind-*.jar \
+                     /tmp/dremio-jars/jackson-annotations-*.jar \
+                     /tmp/dremio-jars/jackson-core-*.jar; do
+            [ -f "$JAR" ] || continue
+            BASENAME=$(basename "$JAR" .jar)
+            ARTIFACTID=$(echo "$BASENAME" | sed 's/-[0-9].*//')
+            VERSION=$(echo "$BASENAME" | sed "s/${ARTIFACTID}-//")
+            mvn install:install-file \
+              -Dfile="$JAR" \
+              -DgroupId=com.fasterxml.jackson.core \
+              -DartifactId="$ARTIFACTID" \
+              -Dversion="$VERSION" \
+              -Dpackaging=jar
+          done
+
+      # ---------------------------------------------------------------
+      # Build
+      # ---------------------------------------------------------------
+      - name: Build with Maven
+        run: mvn package -DskipTests --batch-mode
+
+      - name: Upload plugin JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dremio-salesforce-connector
+          path: target/dremio-salesforce-connector-*.jar
+          retention-days: 30

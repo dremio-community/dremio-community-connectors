@@ -20,7 +20,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Apache Pinot](pinot/) | Pinot real-time tables | Username/password, TLS | ✅ 10/10 tests passing |
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
-| [Salesforce](https://github.com/dremio-community/dremio-salesforce-connector) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
+| [Salesforce](salesforce/) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
@@ -58,9 +58,8 @@ cd pinot
 cd dynamodb
 ./install.sh --docker try-dremio --prebuilt
 
-# Salesforce (REST) — standalone repo
-git clone https://github.com/dremio-community/dremio-salesforce-connector
-cd dremio-salesforce-connector
+# Salesforce (REST)
+cd salesforce
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -196,7 +195,7 @@ LIMIT 500;
 
 ---
 
-### [Salesforce (REST)](https://github.com/dremio-community/dremio-salesforce-connector)
+### [Salesforce (REST)](salesforce/)
 
 Native connector that queries Salesforce SObjects as SQL tables using the REST API and SOQL. OAuth2 password-grant authentication with Connected App credentials. Auto-discovers all accessible SObjects, pushes WHERE clauses as SOQL filters, and reads data via paginated queryMore cursors. No JDBC driver required.
 
@@ -221,7 +220,7 @@ JOIN iceberg_catalog.crm.segments i ON s.Id = i.sf_account_id;
 
 **Key features:** SOQL WHERE pushdown · parallel LIMIT+OFFSET splits · auto-discovery · OAuth2 token refresh · sandbox support · object exclusion · full type mapping
 
-> **Note:** Lives in its own repo: [dremio-community/dremio-salesforce-connector](https://github.com/dremio-community/dremio-salesforce-connector)
+
 
 ---
 
@@ -280,6 +279,7 @@ dremio-community-connectors/
 ├── pinot/           — Apache Pinot connector (ARP/JDBC)
 ├── dynamodb/        — Amazon DynamoDB connector (native)
 ├── splunk/          — Splunk connector (REST API / SPL)
+├── salesforce/      — Salesforce connector (REST API / SOQL)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)

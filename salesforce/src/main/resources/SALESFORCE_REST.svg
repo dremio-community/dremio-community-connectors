@@ -1,0 +1,7 @@
+<svg id="sources/SALESFORCE_REST" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Salesforce blue background -->
+  <rect width="40" height="40" rx="6" fill="#00A1E0"/>
+  <!-- Salesforce cloud shape (white) -->
+  <path d="M16.5 10.5C17.8 8.7 19.8 7.5 22 7.5C25.1 7.5 27.7 9.6 28.5 12.5C29 12.3 29.5 12.2 30 12.2C32.2 12.2 34 14 34 16.2C34 18.4 32.2 20.2 30 20.2H11C9.3 20.2 8 18.9 8 17.2C8 15.5 9.3 14.2 11 14.2C11.2 14.2 11.4 14.2 11.6 14.3C11.4 13.7 11.3 13.1 11.3 12.5C11.3 11.2 12.4 10.2 13.7 10.2C14.7 10.2 15.7 10.7 16.5 10.5Z" fill="white"/>
+  <!-- Salesforce "S" or just keep cloud only -->
+</svg>
