@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!--
+    HubSpot logo: central open ring + 3 satellite dots.
+    Color: #FF7A59 (HubSpot brand orange). Transparent background.
+    Center arm longer; side arms angled inward slightly.
+  -->
+
+  <!-- Connection lines (drawn first; ring/dots render on top) -->
+
+  <!-- Center/top arm — longest, goes straight up-right to large dot -->
+  <line x1="61" y1="37" x2="83" y2="10"
+        stroke="#FF7A59" stroke-width="5.5" stroke-linecap="round"/>
+
+  <!-- Upper-left arm — angled inward (less steep than before) -->
+  <line x1="46" y1="37" x2="28" y2="17"
+        stroke="#FF7A59" stroke-width="5.5" stroke-linecap="round"/>
+
+  <!-- Lower-left arm — angled inward (less steep, shorter) -->
+  <line x1="40" y1="63" x2="22" y2="77"
+        stroke="#FF7A59" stroke-width="5.5" stroke-linecap="round"/>
+
+  <!-- Central donut ring -->
+  <circle cx="53" cy="52" r="16" fill="none" stroke="#FF7A59" stroke-width="8"/>
+
+  <!-- Satellite dots -->
+  <circle cx="87" cy="7"  r="7"  fill="#FF7A59"/>  <!-- center/top (large, longer arm) -->
+  <circle cx="24" cy="13" r="6"  fill="#FF7A59"/>  <!-- upper-left -->
+  <circle cx="18" cy="81" r="6"  fill="#FF7A59"/>  <!-- lower-left -->
+</svg>
