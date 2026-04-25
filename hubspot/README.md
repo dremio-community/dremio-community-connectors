@@ -74,6 +74,14 @@ Create a **Private App** in HubSpot (Settings → Integrations → Private Apps)
   --user dremio --password dremio_pass
 ```
 
+**Required system option** — run this once in Dremio SQL Runner after installing:
+
+```sql
+ALTER SYSTEM SET "job.profile.async.update" = true;
+```
+
+Without this, queries that return data rows will hang in RUNNING state indefinitely. This is a Dremio coordinator setting that controls how job completion is signaled; the default (`false`) uses a code path that does not work correctly with this connector.
+
 ## Usage
 
 ```sql
@@ -141,7 +149,7 @@ FROM hubspot.owners;
 
 **API limits:** HubSpot allows 100 records per page and 10 requests/second (burst) for Private Apps. The connector fetches pages sequentially with cursor-based pagination.
 
-**Data types:** HubSpot returns all property values as strings internally. The connector maps them to Arrow types based on the property definition (`number` → DOUBLE, `bool` → BOOL, `date` → DATE, `datetime` → TIMESTAMP). If a conversion fails, the value is returned as VARCHAR.
+**Data types:** HubSpot property types are mapped as follows: `number`/`currency` → DOUBLE, `bool` → BOOL, everything else (including `date` and `datetime`) → VARCHAR. Date and datetime values are returned as ISO-8601 strings (e.g. `2024-01-15` and `2024-01-15T10:30:00.000Z`) that you can cast as needed.
 
 **Archived records:** By default, archived (soft-deleted) records are excluded. Enable with `--include-archived` in `add-hubspot-source.sh` or toggle the option in the Dremio UI.
 
