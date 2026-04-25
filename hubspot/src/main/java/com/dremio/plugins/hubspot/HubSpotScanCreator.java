@@ -17,23 +17,13 @@ import com.dremio.sabot.exec.fragment.FragmentExecutionContext;
 import com.dremio.sabot.op.scan.ScanOperator;
 import com.dremio.sabot.op.spi.ProducerOperator;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Execution-side factory for HubSpot scan operators.
- *
- * <p>Deserializes the HubSpotScanSpec from the split bytes so the RecordReader
- * gets the full property list that was resolved at metadata time.
- */
 public class HubSpotScanCreator implements ProducerOperator.Creator<HubSpotSubScan> {
 
-    private static final Logger logger = LoggerFactory.getLogger(HubSpotScanCreator.class);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Override
@@ -41,8 +31,6 @@ public class HubSpotScanCreator implements ProducerOperator.Creator<HubSpotSubSc
                                    OperatorContext context,
                                    HubSpotSubScan subScan) throws ExecutionSetupException {
         HubSpotStoragePlugin plugin = fec.getStoragePlugin(subScan.getPluginId());
-
-        // Prefer the spec from the sub-scan (which may have been decoded from split bytes)
         HubSpotScanSpec spec = subScan.getScanSpec();
 
         List<RecordReader> readers = new ArrayList<>();

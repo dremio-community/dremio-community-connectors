@@ -42,13 +42,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Dremio StoragePlugin for HubSpot CRM.
- *
- * <p>Exposes standard CRM object types (contacts, companies, deals, tickets, etc.)
- * plus owners as queryable Dremio datasets. Schemas are derived dynamically from
- * the HubSpot Properties API at metadata refresh time.
- */
 public class HubSpotStoragePlugin implements StoragePlugin, SupportsListingDatasets {
 
     private static final Logger logger = LoggerFactory.getLogger(HubSpotStoragePlugin.class);

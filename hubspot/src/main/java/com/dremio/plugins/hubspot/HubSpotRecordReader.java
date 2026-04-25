@@ -14,11 +14,8 @@ import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.arrow.vector.BigIntVector;
 import org.apache.arrow.vector.BitVector;
-import org.apache.arrow.vector.DateDayVector;
 import org.apache.arrow.vector.Float8Vector;
-import org.apache.arrow.vector.TimeStampMilliTZVector;
 import org.apache.arrow.vector.ValueVector;
 import org.apache.arrow.vector.VarCharVector;
 import org.apache.arrow.vector.types.pojo.ArrowType;
@@ -28,27 +25,13 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Reads HubSpot CRM records into Arrow vectors.
- *
- * <p>Handles cursor-based pagination transparently across next() calls.
- * Each record has built-in fields (id, createdAt, updatedAt, archived) plus
- * dynamic property values nested under the "properties" key in the API response.
- *
- * <p>IMPORTANT: We do NOT call addField() in setup(). Dremio pre-allocates vectors
- * before calling setup(). Look up each vector by name via output.getVector().
- */
 public class HubSpotRecordReader extends AbstractRecordReader {
 
     private static final Logger logger = LoggerFactory.getLogger(HubSpotRecordReader.class);
 
-    /** Built-in field names present at the top level of every HubSpot record. */
     private static final java.util.Set<String> BUILTIN_NAMES = new java.util.HashSet<>(
             java.util.Arrays.asList("id", "createdAt", "updatedAt", "archived"));
 
@@ -95,9 +78,6 @@ public class HubSpotRecordReader extends AbstractRecordReader {
         firstCall = true;
         pageOffset = 0;
         currentPage = null;
-
-        logger.debug("HubSpotRecordReader setup: objectType={} properties={}",
-                spec.getObjectType(), spec.getPropertyNames().size());
     }
 
     @Override
@@ -225,39 +205,15 @@ public class HubSpotRecordReader extends AbstractRecordReader {
     private void writeValue(ValueVector vector, Field field, String raw, int idx) {
         ArrowType type = field.getType();
 
-        if (type instanceof ArrowType.Utf8) {
-            ((VarCharVector) vector).setSafe(idx, raw.getBytes(StandardCharsets.UTF_8));
-
-        } else if (type instanceof ArrowType.Bool) {
+        if (type instanceof ArrowType.Bool) {
             ((BitVector) vector).setSafe(idx, Boolean.parseBoolean(raw) ? 1 : 0);
-
         } else if (type instanceof ArrowType.FloatingPoint) {
-            double d = Double.parseDouble(raw);
-            ((Float8Vector) vector).setSafe(idx, d);
-
-        } else if (type instanceof ArrowType.Int) {
-            long l = Long.parseLong(raw);
-            ((BigIntVector) vector).setSafe(idx, l);
-
-        } else if (type instanceof ArrowType.Date) {
-            // HubSpot date format: "2024-01-15" (ISO local date)
-            LocalDate date = LocalDate.parse(raw, DateTimeFormatter.ISO_LOCAL_DATE);
-            ((DateDayVector) vector).setSafe(idx, (int) date.toEpochDay());
-
-        } else if (type instanceof ArrowType.Timestamp) {
-            // HubSpot datetime: ISO-8601 with millis, e.g. "2024-01-15T10:30:00.000Z"
-            // Also handles epoch millis (number stored as string)
-            long epochMillis;
             try {
-                epochMillis = Instant.parse(raw).toEpochMilli();
-            } catch (Exception e) {
-                // Fallback: try parsing as epoch milliseconds
-                epochMillis = Long.parseLong(raw);
+                ((Float8Vector) vector).setSafe(idx, Double.parseDouble(raw));
+            } catch (NumberFormatException e) {
+                // leave unset
             }
-            ((TimeStampMilliTZVector) vector).setSafe(idx, epochMillis);
-
         } else {
-            // Fallback: stringify
             ((VarCharVector) vector).setSafe(idx, raw.getBytes(StandardCharsets.UTF_8));
         }
     }
