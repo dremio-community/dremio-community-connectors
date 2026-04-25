@@ -1,6 +1,6 @@
 # Dremio Community Connectors
 
-Community-built storage plugins for [Dremio](https://www.dremio.com/) — adding read support for data sources not covered by Dremio's official connector library.
+Community-built storage plugins for [Dremio](https://www.dremio.com/) — adding read support for data sources not covered by Dremio's pre-packaged connector library.
 
 Each connector is a self-contained Dremio storage plugin that installs as a JAR into `jars/3rdparty/` and exposes its data source as SQL tables in the Dremio catalog.
 
