@@ -22,6 +22,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 | [Salesforce](salesforce/) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
 | [Zendesk](zendesk/) | Zendesk Support (REST API) | API token (email/token) | ✅ Working |
+| [Azure Cosmos DB](cosmosdb/) | Cosmos DB NoSQL API (REST) | Master key / emulator | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
@@ -66,6 +67,10 @@ cd salesforce
 # Zendesk
 cd zendesk
 ./install.sh --docker try-dremio --prebuilt
+
+# Azure Cosmos DB
+cd cosmosdb
+./install.sh
 ```
 
 After installing, restart Dremio. The new source type will appear under **Sources → +**.
@@ -258,6 +263,38 @@ GROUP BY score;
 
 ---
 
+### [Azure Cosmos DB](cosmosdb/)
+
+Native connector that queries Azure Cosmos DB (NoSQL API) containers as SQL tables via the Cosmos DB REST API. Uses HMAC-SHA256 master key auth with no SDK or JDBC driver required. Schema is inferred by sampling documents at metadata refresh time. Nested objects are flattened one level deep (e.g. `contact.email` → `contact_email`). Supports continuation-token pagination and the local Cosmos DB emulator (ARM64).
+
+```bash
+COSMOS_ENDPOINT=https://myaccount.documents.azure.com:443 \
+COSMOS_DATABASE=mydb \
+COSMOS_KEY=YOUR_MASTER_KEY== \
+./add-cosmosdb-source.sh
+```
+
+```sql
+-- Query any container
+SELECT id, status, subject, priority, created_at
+FROM cosmosdb.tickets
+WHERE status = 'open';
+
+-- Flattened nested fields
+SELECT id, name, contact_email, tier
+FROM cosmosdb.customers
+WHERE tier = 'enterprise';
+
+-- Cross-source JOIN
+SELECT t.id, t.subject, c.name AS company
+FROM cosmosdb.tickets t
+JOIN iceberg_catalog.crm.accounts c ON t.account_id = c.id;
+```
+
+**Key features:** HMAC-SHA256 auth · document sampling schema inference · one-level nested flattening · continuation-token pagination · local emulator support (ARM64) · no SDK/JDBC driver
+
+---
+
 ### [Excel / CSV Importer](excel-importer/)
 
 Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
@@ -315,6 +352,7 @@ dremio-community-connectors/
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── salesforce/      — Salesforce connector (REST API / SOQL)
 ├── zendesk/         — Zendesk connector (REST API)
+├── cosmosdb/        — Azure Cosmos DB connector (REST API / HMAC auth)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
