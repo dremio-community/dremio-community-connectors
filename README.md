@@ -21,6 +21,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Amazon DynamoDB](dynamodb/) | DynamoDB tables (any region) | IAM role, instance profile, static keys | ✅ 27/27 tests passing |
 | [Splunk](splunk/) | Splunk indexes (on-prem + Cloud) | Username/password, bearer token | ✅ 20/20 tests passing |
 | [Salesforce](salesforce/) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
+| [Zendesk](zendesk/) | Zendesk Support (REST API) | API token (email/token) | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
@@ -60,6 +61,10 @@ cd dynamodb
 
 # Salesforce (REST)
 cd salesforce
+./install.sh --docker try-dremio --prebuilt
+
+# Zendesk
+cd zendesk
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -224,6 +229,35 @@ JOIN iceberg_catalog.crm.segments i ON s.Id = i.sf_account_id;
 
 ---
 
+### [Zendesk](zendesk/)
+
+Native connector that queries Zendesk Support data as SQL tables using the Zendesk REST API. No JDBC driver required — uses Java 11's built-in `HttpClient` with API token auth. Exposes tickets, users, organizations, groups, ticket_metrics, and satisfaction_ratings with cursor-based pagination.
+
+```bash
+export ZENDESK_SUBDOMAIN=acme
+export ZENDESK_EMAIL=agent@example.com
+export ZENDESK_API_TOKEN=your_api_token
+./add-zendesk-source.sh
+```
+
+```sql
+SELECT id, subject, status, priority, created_at
+FROM zendesk.tickets
+WHERE status = 'open'
+ORDER BY created_at DESC
+LIMIT 20;
+
+SELECT score, COUNT(*) AS count
+FROM zendesk.satisfaction_ratings
+GROUP BY score;
+```
+
+> **Note:** `groups` is a SQL reserved word — use `zendesk."groups"`.
+
+**Key features:** 6 tables · cursor pagination · timestamp support · dot-notation nested field extraction · no JDBC driver
+
+---
+
 ### [Excel / CSV Importer](excel-importer/)
 
 Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
@@ -280,6 +314,7 @@ dremio-community-connectors/
 ├── dynamodb/        — Amazon DynamoDB connector (native)
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── salesforce/      — Salesforce connector (REST API / SOQL)
+├── zendesk/         — Zendesk connector (REST API)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)

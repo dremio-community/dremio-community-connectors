@@ -1,0 +1,61 @@
+{
+  "sourceType": "ZENDESK_REST",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.subdomain",
+            "label": "Subdomain",
+            "placeholder": "mycompany",
+            "tooltip": "Your Zendesk subdomain (the part before .zendesk.com)",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.email",
+            "label": "Agent Email",
+            "placeholder": "agent@mycompany.com",
+            "tooltip": "Email address of the Zendesk agent used for API authentication",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.apiToken",
+            "label": "API Token",
+            "tooltip": "Generate under Zendesk Admin → Apps & Integrations → Zendesk API → API Tokens",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Records per API page (max 100 for most Zendesk endpoints)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
