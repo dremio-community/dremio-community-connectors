@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * Registers Spanner planner rules with Dremio's optimizer.
  *
- *   LOGICAL  → SpannerScanRule
+ *   LOGICAL  → SpannerScanRule, SpannerFilterRule, SpannerLimitRule
  *   PHYSICAL → SpannerScanPrule
  */
 public class SpannerRulesFactory extends StoragePluginTypeRulesFactory {
@@ -23,7 +23,10 @@ public class SpannerRulesFactory extends StoragePluginTypeRulesFactory {
                                    SourceType pluginType) {
     switch (phase) {
       case LOGICAL:
-        return ImmutableSet.of(SpannerScanRule.INSTANCE);
+        return ImmutableSet.of(
+            SpannerScanRule.INSTANCE,
+            SpannerFilterRule.INSTANCE,
+            SpannerLimitRule.INSTANCE);
       case PHYSICAL:
         return ImmutableSet.of(SpannerScanPrule.INSTANCE);
       default:
