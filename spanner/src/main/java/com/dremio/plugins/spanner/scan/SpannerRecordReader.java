@@ -107,23 +107,57 @@ public class SpannerRecordReader extends AbstractRecordReader {
   /**
    * Builds a SQL query for the given spec with MOD-based segmentation.
    * When totalSegments == 1 the WHERE clause is omitted for efficiency.
+   *
+   * Segmentation fingerprints the primary key rather than the full row JSON
+   * so the query works on both production Spanner and the emulator
+   * (TO_JSON_STRING on a STRUCT/table-alias is not supported by the emulator).
    */
   private String buildSql(SpannerScanSpec spec) {
     StringBuilder sb = new StringBuilder(spec.toSql());
 
     if (spec.getTotalSegments() > 1) {
       boolean hasWhere = spec.hasFilters();
-      String segmentClause = String.format(
-          "MOD(ABS(FARM_FINGERPRINT(TO_JSON_STRING(`%s`))), %d) = %d",
-          spec.getTableName(), spec.getTotalSegments(), spec.getSegment());
-      if (hasWhere) {
-        sb.append(" AND ").append(segmentClause);
-      } else {
-        sb.append(" WHERE ").append(segmentClause);
+      String segmentClause = buildSegmentClause(spec);
+      if (segmentClause != null) {
+        if (hasWhere) {
+          sb.append(" AND ").append(segmentClause);
+        } else {
+          sb.append(" WHERE ").append(segmentClause);
+        }
       }
     }
 
     return sb.toString();
+  }
+
+  /**
+   * Returns a MOD-based WHERE fragment that partitions the table by its primary key.
+   * Falls back gracefully (returns null = full scan) if no PK is found.
+   */
+  private String buildSegmentClause(SpannerScanSpec spec) {
+    try {
+      List<String> pks = plugin.getConnection().getPrimaryKeys(spec.getTableName());
+      if (pks.isEmpty()) return null;
+
+      // Determine PK expression: INT64 → direct modulo; anything else → FARM_FINGERPRINT on cast
+      List<SpannerConnection.SpannerColumnInfo> cols =
+          plugin.getConnection().getColumns(spec.getTableName());
+      String pkCol = pks.get(0);
+      boolean isInt64 = cols.stream()
+          .filter(c -> c.name.equalsIgnoreCase(pkCol))
+          .anyMatch(c -> c.spannerType.toUpperCase().startsWith("INT64"));
+
+      String fingerprint = isInt64
+          ? String.format("ABS(`%s`)", pkCol)
+          : String.format("ABS(FARM_FINGERPRINT(CAST(`%s` AS STRING)))", pkCol);
+
+      return String.format("MOD(%s, %d) = %d",
+          fingerprint, spec.getTotalSegments(), spec.getSegment());
+    } catch (Exception e) {
+      logger.warn("Could not build segment clause for {}, scanning without segmentation: {}",
+          spec.getTableName(), e.getMessage());
+      return null;
+    }
   }
 
   @Override
