@@ -1,0 +1,68 @@
+{
+  "sourceType": "GOOGLE_CLOUD_SPANNER",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Cloud Spanner for new tables"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.project",
+            "size": "FULL",
+            "label": "GCP Project ID",
+            "placeholder": "my-gcp-project",
+            "tooltip": "Google Cloud project that contains your Spanner instance"
+          },
+          {
+            "propName": "config.instance",
+            "label": "Spanner Instance ID",
+            "placeholder": "my-instance",
+            "tooltip": "Cloud Spanner instance ID"
+          },
+          {
+            "propName": "config.database",
+            "label": "Database",
+            "placeholder": "my-database",
+            "tooltip": "Cloud Spanner database name"
+          }
+        ]
+      },
+      {
+        "name": "Credentials",
+        "elements": [
+          {
+            "propName": "config.credentialsFile",
+            "label": "Service Account Key File",
+            "placeholder": "/path/to/service-account-key.json",
+            "tooltip": "Path to a GCP service account JSON key file. Leave blank to use Application Default Credentials (ADC) — e.g. Workload Identity, gcloud login, or the GOOGLE_APPLICATION_CREDENTIALS environment variable."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.splitParallelism",
+            "label": "Split Parallelism",
+            "type": "number",
+            "tooltip": "Number of parallel read segments per table. Higher values increase throughput on large tables (default 4)."
+          },
+          {
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "type": "number",
+            "tooltip": "Maximum seconds to wait for a Spanner query to complete (default 300)."
+          },
+          {
+            "propName": "config.metadataCacheTtlSeconds",
+            "label": "Schema Cache TTL (seconds)",
+            "type": "number",
+            "tooltip": "How long to cache the Arrow schema per table before re-fetching from INFORMATION_SCHEMA (default 300)."
+          }
+        ]
+      }
+    ]
+  }
+}
