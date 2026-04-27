@@ -1,35 +1,104 @@
 #!/usr/bin/env bash
-# install.sh — build and deploy the Spanner connector JAR to a running Dremio instance
+# install.sh — Deploy the Dremio Google Cloud Spanner connector to a running Dremio instance
+#
+# Usage:
+#   ./install.sh [OPTIONS]
+#
+# Options:
+#   --docker    NAME    Dremio Docker container name (default: try-dremio)
+#   --local     PATH    Bare-metal Dremio install dir (e.g. /opt/dremio)
+#   --k8s       POD     Kubernetes pod name (e.g. dremio-0)
+#   --prebuilt          Use JAR from jars/ instead of building from source
+#   --no-restart        Don't restart Dremio after installing
+#   --help              Show this help
+
 set -euo pipefail
 
+GREEN='\033[0;32m'; CYAN='\033[0;36m'; RESET='\033[0m'
+ok()   { echo -e "  ${GREEN}✓${RESET} $*"; }
+info() { echo -e "  ${CYAN}→${RESET} $*"; }
+
+CONTAINER=""
+LOCAL_DIR=""
+K8S_POD=""
+PREBUILT=false
+RESTART=true
+DREMIO_JAR_DIR="/opt/dremio/jars/3rdparty"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-JAR_NAME="dremio-spanner-plugin-*.jar"
 
-# ── Build ──────────────────────────────────────────────────────────────────────
-echo "Building Spanner connector..."
-cd "$SCRIPT_DIR"
-mvn package -DskipTests -q
-JAR_PATH=$(ls target/dremio-spanner-plugin-*.jar 2>/dev/null | head -1)
-if [[ -z "$JAR_PATH" ]]; then
-  echo "ERROR: build produced no JAR in target/"
-  exit 1
-fi
-echo "Built: $JAR_PATH"
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --docker)      CONTAINER="$2";  shift 2 ;;
+    --local)       LOCAL_DIR="$2";  shift 2 ;;
+    --k8s)         K8S_POD="$2";    shift 2 ;;
+    --prebuilt)    PREBUILT=true;   shift ;;
+    --no-restart)  RESTART=false;   shift ;;
+    --help|-h)     sed -n '3,12p' "$0" | sed 's/^# *//'; exit 0 ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
 
-# ── Deploy ─────────────────────────────────────────────────────────────────────
-DREMIO_HOME="${DREMIO_HOME:-/opt/dremio}"
-JARS_DIR="${JARS_DIR:-$DREMIO_HOME/jars/3rdparty}"
+[[ -z "$CONTAINER" && -z "$LOCAL_DIR" && -z "$K8S_POD" ]] && CONTAINER="try-dremio"
 
-if [[ -d "$JARS_DIR" ]]; then
-  echo "Copying to $JARS_DIR ..."
-  cp "$JAR_PATH" "$JARS_DIR/"
-  echo "Done. Restart Dremio to load the connector."
+if $PREBUILT; then
+  JAR_PATH=$(find "$SCRIPT_DIR/jars" -name "dremio-spanner-connector-*.jar" | head -1)
+  [[ -z "$JAR_PATH" ]] && { echo "ERROR: No prebuilt JAR found in jars/"; exit 1; }
+  info "Using prebuilt JAR: $(basename "$JAR_PATH")"
 else
-  # Docker path
-  CONTAINER="${DREMIO_CONTAINER:-dremio}"
-  echo "Copying into Docker container '$CONTAINER'..."
-  docker cp "$JAR_PATH" "$CONTAINER:/opt/dremio/jars/3rdparty/"
-  echo "Restarting container..."
-  docker restart "$CONTAINER"
-  echo "Done. Dremio is restarting."
+  info "Building from source (requires Maven inside the Dremio container)..."
+  if [[ -n "$CONTAINER" ]]; then
+    DOCKER=$(command -v docker 2>/dev/null || echo "/Applications/Docker.app/Contents/Resources/bin/docker")
+    $DOCKER exec -u root "$CONTAINER" bash -c "rm -rf /tmp/spanner-build" 2>/dev/null || true
+    $DOCKER cp "$SCRIPT_DIR/." "${CONTAINER}:/tmp/spanner-build"
+    $DOCKER exec -u root "$CONTAINER" bash -c "cd /tmp/spanner-build && mvn package -q -DskipTests"
+    $DOCKER cp "${CONTAINER}:/tmp/spanner-build/jars/dremio-spanner-connector-1.0.0.jar" \
+               "${SCRIPT_DIR}/jars/dremio-spanner-connector-1.0.0.jar" 2>/dev/null || true
+    JAR_PATH="${SCRIPT_DIR}/jars/dremio-spanner-connector-1.0.0.jar"
+  else
+    cd "$SCRIPT_DIR" && mvn package -DskipTests -q
+    JAR_PATH=$(find "$SCRIPT_DIR/jars" -name "dremio-spanner-connector-*.jar" | head -1)
+  fi
+  [[ -z "$JAR_PATH" || ! -f "$JAR_PATH" ]] && { echo "ERROR: Build failed — JAR not found"; exit 1; }
+  ok "Build complete: $(basename "$JAR_PATH")"
 fi
+
+JAR_NAME=$(basename "$JAR_PATH")
+
+if [[ -n "$CONTAINER" ]]; then
+  DOCKER=$(command -v docker 2>/dev/null || echo "/Applications/Docker.app/Contents/Resources/bin/docker")
+  [[ ! -x "$DOCKER" ]] && { echo "ERROR: docker not found"; exit 1; }
+  $DOCKER ps --format '{{.Names}}' | grep -q "^${CONTAINER}$" || { echo "ERROR: Container '$CONTAINER' is not running"; exit 1; }
+  info "Deploying to Docker container '$CONTAINER'..."
+  $DOCKER cp "$JAR_PATH" "${CONTAINER}:${DREMIO_JAR_DIR}/${JAR_NAME}"
+  ok "Copied to ${DREMIO_JAR_DIR}/${JAR_NAME}"
+  if $RESTART; then
+    info "Restarting Dremio..."
+    $DOCKER restart "$CONTAINER"
+    info "Waiting for Dremio to come up (up to 90s)..."
+    for i in $(seq 1 18); do
+      STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:9047/ 2>/dev/null || echo "000")
+      [[ "$STATUS" == "200" ]] && { ok "Dremio is up"; break; }
+      sleep 5
+    done
+  fi
+
+elif [[ -n "$LOCAL_DIR" ]]; then
+  cp "$JAR_PATH" "${LOCAL_DIR}/jars/3rdparty/${JAR_NAME}"
+  ok "Copied to ${LOCAL_DIR}/jars/3rdparty/${JAR_NAME}"
+  $RESTART && "${LOCAL_DIR}/bin/dremio" restart
+
+elif [[ -n "$K8S_POD" ]]; then
+  kubectl cp "$JAR_PATH" "${K8S_POD}:${DREMIO_JAR_DIR}/${JAR_NAME}"
+  ok "Copied to ${K8S_POD}:${DREMIO_JAR_DIR}/${JAR_NAME}"
+  $RESTART && kubectl exec "$K8S_POD" -- /opt/dremio/bin/dremio restart
+fi
+
+echo ""
+ok "Google Cloud Spanner connector installed successfully"
+echo ""
+echo "  Configure in Dremio UI → Sources → + Add Source → Google Cloud Spanner"
+echo ""
+echo "  Test with:"
+echo "    SELECT * FROM spanner_source.my_table LIMIT 100;"
+echo "    SELECT name, salary FROM spanner_source.employees WHERE department = 'Engineering';"
+echo ""
