@@ -23,6 +23,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Salesforce](salesforce/) | Salesforce SObjects (REST API) | OAuth2 Connected App | ✅ Working |
 | [Zendesk](zendesk/) | Zendesk Support (REST API) | API token (email/token) | ✅ Working |
 | [Azure Cosmos DB](cosmosdb/) | Cosmos DB NoSQL API (REST) | Master key / emulator | ✅ Working |
+| [Microsoft Dataverse](dataverse/) | Dataverse / Dynamics 365 (OData v4) | Azure AD OAuth2 client credentials | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 
 ---
@@ -263,6 +264,39 @@ GROUP BY score;
 
 ---
 
+### [Microsoft Dataverse](dataverse/)
+
+Native connector that queries Microsoft Dataverse (Dynamics 365) entities as SQL tables using the OData v4 REST API. Azure AD OAuth2 client credentials flow (no user password needed). Auto-discovers all queryable entities with full field type mapping, OData `$filter` pushdown for WHERE clauses, and transparent pagination via `@odata.nextLink`.
+
+```bash
+ORG_URL=https://yourorg.api.crm.dynamics.com \
+TENANT_ID=your-tenant-id \
+CLIENT_ID=your-client-id \
+CLIENT_SECRET=your-client-secret \
+./add-dataverse-source.sh
+```
+
+```sql
+SELECT accountid, name, telephone1, createdon
+FROM dataverse.account
+LIMIT 100;
+
+-- WHERE pushdown to OData $filter
+SELECT name, revenue, industrycode
+FROM dataverse.account
+WHERE statecode = 0
+  AND revenue > 1000000;
+
+-- Cross-source JOIN
+SELECT a.name AS company, c.fullname AS contact, c.emailaddress1
+FROM dataverse.account a
+JOIN dataverse.contact c ON a.accountid = c.parentcustomerid;
+```
+
+**Key features:** Azure AD OAuth2 client credentials · OData `$filter` pushdown · cursor pagination · full type mapping (String, Integer, BigInt, Money, Boolean, DateTime, Lookup, Picklist) · schema discovery · no JDBC driver
+
+---
+
 ### [Azure Cosmos DB](cosmosdb/)
 
 Native connector that queries Azure Cosmos DB (NoSQL API) containers as SQL tables via the Cosmos DB REST API. Uses HMAC-SHA256 master key auth with no SDK or JDBC driver required. Schema is inferred by sampling documents at metadata refresh time. Nested objects are flattened one level deep (e.g. `contact.email` → `contact_email`). Supports continuation-token pagination and the local Cosmos DB emulator (ARM64).
@@ -353,6 +387,7 @@ dremio-community-connectors/
 ├── salesforce/      — Salesforce connector (REST API / SOQL)
 ├── zendesk/         — Zendesk connector (REST API)
 ├── cosmosdb/        — Azure Cosmos DB connector (REST API / HMAC auth)
+├── dataverse/       — Microsoft Dataverse connector (OData v4 / Azure AD OAuth2)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)

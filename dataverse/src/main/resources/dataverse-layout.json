@@ -1,0 +1,85 @@
+{
+  "sourceType": "DATAVERSE",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.organizationUrl",
+            "label": "Organization URL",
+            "placeholder": "https://yourorg.api.crm.dynamics.com",
+            "tooltip": "Your Dataverse environment URL (found in Power Apps > Settings > Session details)",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.tenantId",
+            "label": "Tenant ID",
+            "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            "tooltip": "Azure AD Directory (Tenant) ID from your App Registration",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.clientId",
+            "label": "Client ID (Application ID)",
+            "placeholder": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+            "tooltip": "Azure AD App Registration Application (Client) ID",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.clientSecret",
+            "label": "Client Secret",
+            "tooltip": "Azure AD App Registration client secret value",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.apiVersion",
+            "label": "API Version",
+            "placeholder": "9.2",
+            "tooltip": "Dataverse Web API version (9.1 or 9.2)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.recordsPerPage",
+            "label": "Records Per Page",
+            "placeholder": "5000",
+            "tooltip": "Max records per OData page (Dataverse max is 5000)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          },
+          {
+            "type": "text",
+            "propName": "config.excludedEntities",
+            "label": "Excluded Entities",
+            "placeholder": "activitypointer,asyncoperation",
+            "tooltip": "Comma-separated entity logical names to hide from the dataset listing",
+            "size": "full"
+          }
+        ]
+      }
+    ]
+  }
+}
