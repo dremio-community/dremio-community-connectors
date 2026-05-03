@@ -11,6 +11,7 @@ package com.dremio.plugins.hubspot;
 
 import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.Rel;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

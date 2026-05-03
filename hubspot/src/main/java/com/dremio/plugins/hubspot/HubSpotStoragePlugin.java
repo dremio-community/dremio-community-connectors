@@ -27,6 +27,7 @@ import com.dremio.exec.record.BatchSchema;
 import com.dremio.exec.store.StoragePlugin;
 import com.dremio.exec.store.StoragePluginRulesFactory;
 import com.dremio.plugins.hubspot.HubSpotConnection.HubSpotProperty;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.dremio.service.namespace.NamespaceKey;
 import com.dremio.service.namespace.SourceState;
 import com.dremio.service.namespace.capabilities.SourceCapabilities;

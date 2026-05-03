@@ -13,6 +13,7 @@ import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.dremio.exec.store.TableMetadata;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;

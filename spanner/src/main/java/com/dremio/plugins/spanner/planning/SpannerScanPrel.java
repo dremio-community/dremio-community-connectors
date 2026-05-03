@@ -10,7 +10,7 @@ import com.dremio.exec.planner.physical.ScanPrelBase;
 import com.dremio.exec.store.TableMetadata;
 import com.dremio.exec.physical.base.GroupScan;
 import com.dremio.plugins.spanner.scan.SpannerGroupScan;
-import com.dremio.plugins.spanner.scan.SpannerScanSpec;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;

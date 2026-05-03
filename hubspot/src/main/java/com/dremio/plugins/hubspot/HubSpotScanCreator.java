@@ -11,6 +11,7 @@ package com.dremio.plugins.hubspot;
 
 import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.RecordReader;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.dremio.exec.store.parquet.RecordReaderIterator;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.exec.fragment.FragmentExecutionContext;

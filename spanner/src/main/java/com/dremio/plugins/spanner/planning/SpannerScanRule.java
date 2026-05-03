@@ -5,7 +5,7 @@ import com.dremio.exec.calcite.logical.ScanCrel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.common.SourceLogicalConverter;
 import com.dremio.plugins.spanner.SpannerStoragePluginConfig;
-import com.dremio.plugins.spanner.scan.SpannerScanSpec;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 
 import java.util.List;
 import java.util.stream.Collectors;

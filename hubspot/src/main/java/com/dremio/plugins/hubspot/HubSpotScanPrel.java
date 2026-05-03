@@ -12,6 +12,7 @@ package com.dremio.plugins.hubspot;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.GroupScan;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.dremio.exec.physical.base.PhysicalOperator;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.physical.OldScanPrelBase;

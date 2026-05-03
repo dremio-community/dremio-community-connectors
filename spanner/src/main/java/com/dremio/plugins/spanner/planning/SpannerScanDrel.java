@@ -5,7 +5,7 @@ import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.planner.common.ScanRelBase;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.store.TableMetadata;
-import com.dremio.plugins.spanner.scan.SpannerScanSpec;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitSet;

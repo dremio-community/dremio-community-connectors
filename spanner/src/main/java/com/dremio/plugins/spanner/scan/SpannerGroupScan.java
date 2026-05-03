@@ -4,6 +4,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.common.expression.SchemaPath;
 import com.dremio.exec.catalog.StoragePluginId;
 import com.dremio.exec.physical.base.AbstractGroupScan;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.store.SplitWork;

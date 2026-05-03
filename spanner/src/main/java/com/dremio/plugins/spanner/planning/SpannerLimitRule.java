@@ -3,7 +3,7 @@ package com.dremio.plugins.spanner.planning;
 import com.dremio.exec.planner.logical.LimitRel;
 import com.dremio.exec.planner.logical.Rel;
 import com.dremio.exec.planner.logical.RelOptHelper;
-import com.dremio.plugins.spanner.scan.SpannerScanSpec;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rex.RexLiteral;

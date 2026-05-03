@@ -17,6 +17,7 @@ import com.dremio.exec.physical.base.OpProps;
 import com.dremio.exec.physical.base.SubScan;
 import com.dremio.exec.store.SplitWork;
 import com.dremio.exec.store.TableMetadata;
+import com.dremio.plugins.hubspot.HubSpotSubScan.HubSpotScanSpec;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;

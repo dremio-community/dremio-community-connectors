@@ -4,6 +4,7 @@ import com.dremio.common.exceptions.ExecutionSetupException;
 import com.dremio.exec.store.AbstractRecordReader;
 import com.dremio.plugins.spanner.SpannerConnection;
 import com.dremio.plugins.spanner.SpannerStoragePlugin;
+import com.dremio.plugins.spanner.scan.SpannerSubScan.SpannerScanSpec;
 import com.dremio.sabot.exec.context.OperatorContext;
 import com.dremio.sabot.op.scan.OutputMutator;
 import com.google.cloud.Date;
