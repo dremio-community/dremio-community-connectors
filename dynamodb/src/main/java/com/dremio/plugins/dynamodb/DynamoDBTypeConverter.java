@@ -181,10 +181,15 @@ public class DynamoDBTypeConverter {
       }
     }
 
-    List<Field> fields = new ArrayList<>(typeMap.size());
-    for (Map.Entry<String, String> entry : typeMap.entrySet()) {
-      String attrName = entry.getKey();
-      String dynT = entry.getValue();
+    // Sort by attribute name for deterministic field order regardless of DynamoDB response order.
+    // DynamoDB returns items as unordered maps; without sorting, field order varies between
+    // calls to inferFields(), causing Dremio to detect a false schema change.
+    List<String> sortedAttrs = new ArrayList<>(typeMap.keySet());
+    Collections.sort(sortedAttrs);
+
+    List<Field> fields = new ArrayList<>(sortedAttrs.size());
+    for (String attrName : sortedAttrs) {
+      String dynT = typeMap.get(attrName);
       boolean allInt = Boolean.TRUE.equals(integerMap.get(attrName));
       fields.add(buildField(attrName, dynT, allInt));
     }
