@@ -24,6 +24,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Zendesk](zendesk/) | Zendesk Support (REST API) | API token (email/token) | ✅ Working |
 | [Azure Cosmos DB](cosmosdb/) | Cosmos DB NoSQL API (REST) | Master key / emulator | ✅ Working |
 | [Microsoft Dataverse](dataverse/) | Dataverse / Dynamics 365 (OData v4) | Azure AD OAuth2 client credentials | ✅ Working |
+| [Stripe](stripe/) | Stripe billing (REST API v1) | Secret API key (sk_live / sk_test) | ✅ 20/21 tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 | [InfluxDB](influxdb/) | InfluxDB 3 Core / Enterprise (HTTP SQL API) | Bearer API token | ✅ 23/23 tests passing |
 
@@ -73,6 +74,10 @@ cd zendesk
 # Azure Cosmos DB
 cd cosmosdb
 ./install.sh
+
+# Stripe
+cd stripe
+./install.sh --docker try-dremio --prebuilt
 
 # InfluxDB 3
 cd influxdb
@@ -371,6 +376,38 @@ WHERE t."value" > 25.0;
 
 ---
 
+### [Stripe](stripe/)
+
+Native connector that queries Stripe billing data as SQL tables using the Stripe REST API v1. Bearer token authentication with your Stripe secret API key. Exposes 9 core tables — charges, customers, subscriptions, invoices, payment_intents, products, prices, refunds, and balance_transactions — with cursor-based pagination and nested field extraction. No JDBC driver required.
+
+```bash
+./add-stripe-source.sh --name stripe --api-key sk_live_...
+```
+
+```sql
+-- Revenue by currency
+SELECT currency, SUM(amount) / 100.0 AS revenue_usd, COUNT(*) AS num_charges
+FROM stripe.charges
+WHERE status = 'succeeded'
+GROUP BY currency;
+
+-- Active subscriptions with customer info
+SELECT s.id, s.status, c.email, c.currency
+FROM stripe.subscriptions s
+JOIN stripe.customers c ON s.customer = c.id
+WHERE s.status = 'active';
+
+-- Cross-source JOIN: Stripe charges + Iceberg CRM
+SELECT ch.id, ch.amount, ch.currency, crm.company_name
+FROM stripe.charges ch
+JOIN iceberg_catalog.crm.accounts crm ON ch.customer = crm.stripe_customer_id
+WHERE ch.status = 'succeeded';
+```
+
+**Key features:** 9 billing tables · cursor pagination · nested JSON field extraction · BIGINT amounts in cents · Bearer token auth · stripe-mock test support · no JDBC driver
+
+---
+
 ### [Excel / CSV Importer](excel-importer/)
 
 Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
@@ -430,6 +467,7 @@ dremio-community-connectors/
 ├── zendesk/         — Zendesk connector (REST API)
 ├── cosmosdb/        — Azure Cosmos DB connector (REST API / HMAC auth)
 ├── dataverse/       — Microsoft Dataverse connector (OData v4 / Azure AD OAuth2)
+├── stripe/          — Stripe connector (REST API v1 / Bearer token)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 ├── influxdb/        — InfluxDB 3 connector (HTTP SQL API / Bearer token)
 └── .github/

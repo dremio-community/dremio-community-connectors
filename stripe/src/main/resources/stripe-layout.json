@@ -1,0 +1,45 @@
+{
+  "sourceType": "STRIPE",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "credentials",
+            "propName": "config.apiKey",
+            "label": "Secret API Key",
+            "tooltip": "Stripe secret key (sk_live_... or sk_test_...). Find it in the Stripe Dashboard → Developers → API keys.",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Records fetched per Stripe API call (max 100)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "60",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
