@@ -25,6 +25,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Azure Cosmos DB](cosmosdb/) | Cosmos DB NoSQL API (REST) | Master key / emulator | ✅ Working |
 | [Microsoft Dataverse](dataverse/) | Dataverse / Dynamics 365 (OData v4) | Azure AD OAuth2 client credentials | ✅ Working |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
+| [InfluxDB](influxdb/) | InfluxDB 3 Core / Enterprise (HTTP SQL API) | Bearer API token | ✅ 23/23 tests passing |
 
 ---
 
@@ -72,6 +73,10 @@ cd zendesk
 # Azure Cosmos DB
 cd cosmosdb
 ./install.sh
+
+# InfluxDB 3
+cd influxdb
+./install.sh --docker try-dremio --prebuilt
 ```
 
 After installing, restart Dremio. The new source type will appear under **Sources → +**.
@@ -329,6 +334,43 @@ JOIN iceberg_catalog.crm.accounts c ON t.account_id = c.id;
 
 ---
 
+### [InfluxDB](influxdb/)
+
+Native connector for InfluxDB 3 Core (OSS) and Enterprise using the InfluxDB 3 HTTP SQL API. No JDBC driver required — pure Java 11 `HttpClient` with Bearer token auth. Each measurement in the configured database is exposed as a Dremio table, with schema inferred from `information_schema.columns`.
+
+```bash
+./add-influxdb-source.sh \
+  --name influxdb_sensors \
+  --host http://localhost:8181 \
+  --database sensors \
+  --token apiv3_xxx...
+```
+
+```sql
+-- Time-series data directly in SQL
+SELECT "time", "value", location
+FROM influxdb_sensors.temperature
+WHERE location = 'server_room'
+ORDER BY "time" DESC;
+
+-- Aggregation by tag
+SELECT location, AVG("value") AS avg_temp
+FROM influxdb_sensors.temperature
+GROUP BY location;
+
+-- Cross-source JOIN: InfluxDB sensors + Iceberg asset registry
+SELECT t."time", t."value" AS temp, a.asset_name
+FROM influxdb_sensors.temperature t
+JOIN iceberg_catalog.assets.registry a ON t.sensor_id = a.sensor_id
+WHERE t."value" > 25.0;
+```
+
+> **Note:** `time` and `value` are reserved words in Dremio SQL — quote them with double-quotes.
+
+**Key features:** Measurements as tables · `information_schema` schema discovery · LIMIT/OFFSET pagination · Bearer token auth · InfluxDB 3 Core + Enterprise · no JDBC driver
+
+---
+
 ### [Excel / CSV Importer](excel-importer/)
 
 Imports `.xlsx` spreadsheets, `.csv` files, and Google Sheets directly into Dremio Iceberg tables via the REST API. Includes a web UI with live progress streaming, schema preview, per-column type overrides, multi-sheet import, and connection profiles. No JDBC driver needed.
@@ -389,6 +431,7 @@ dremio-community-connectors/
 ├── cosmosdb/        — Azure Cosmos DB connector (REST API / HMAC auth)
 ├── dataverse/       — Microsoft Dataverse connector (OData v4 / Azure AD OAuth2)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
+├── influxdb/        — InfluxDB 3 connector (HTTP SQL API / Bearer token)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

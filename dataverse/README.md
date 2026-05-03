@@ -1,8 +1,5 @@
 # Dremio Microsoft Dataverse Connector
 
-### 🐳 [hub.docker.com/r/mshainman/dremio-dataverse-connector](https://hub.docker.com/r/mshainman/dremio-dataverse-connector)
-
-[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-mshainman%2Fdremio--dataverse--connector-0db7ed?style=for-the-badge&logo=docker)](https://hub.docker.com/r/mshainman/dremio-dataverse-connector)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge)](LICENSE)
 
 Query Microsoft Dataverse (Dynamics 365) tables directly from Dremio using SQL. No JDBC driver — uses Azure AD OAuth2 client credentials + OData v4 REST API.

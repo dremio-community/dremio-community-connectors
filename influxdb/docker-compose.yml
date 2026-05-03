@@ -1,0 +1,27 @@
+version: "3.8"
+
+# Local test environment: InfluxDB 3 Core + Dremio
+# Usage:
+#   docker compose up -d influxdb
+#   ./setup-influxdb.sh          # create token, database, and test data
+#   docker compose up -d dremio  # (if not already running)
+#   ./install.sh                 # deploy connector JAR
+#   python tests/smoke_test_influxdb.py
+
+services:
+  influxdb:
+    image: influxdb:3-core
+    container_name: influxdb3
+    ports:
+      - "8181:8181"
+    volumes:
+      - influxdb3-data:/var/lib/influxdb3/data
+    command: >
+      influxdb3 serve
+        --node-id host01
+        --object-store file
+        --data-dir /var/lib/influxdb3/data
+    restart: unless-stopped
+
+volumes:
+  influxdb3-data:

@@ -1,0 +1,61 @@
+{
+  "sourceType": "INFLUXDB",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "title": "Connection",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.host",
+            "label": "Host URL",
+            "placeholder": "http://localhost:8181",
+            "tooltip": "InfluxDB 3 host including scheme and port",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.database",
+            "label": "Database",
+            "placeholder": "mydb",
+            "tooltip": "The InfluxDB database (bucket) to expose as tables",
+            "size": "half"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.token",
+            "label": "Auth Token",
+            "tooltip": "InfluxDB API token (Bearer). Create with: influxdb3 create token --admin",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "1000",
+            "tooltip": "Number of rows fetched per SQL query page (LIMIT/OFFSET)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
