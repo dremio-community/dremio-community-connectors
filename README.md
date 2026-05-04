@@ -27,6 +27,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Stripe](stripe/) | Stripe billing (REST API v1) | Secret API key (sk_live / sk_test) | ✅ 20/21 tests passing |
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 | [InfluxDB](influxdb/) | InfluxDB 3 Core / Enterprise (HTTP SQL API) | Bearer API token | ✅ 23/23 tests passing |
+| [MariaDB](mariadb/) | MariaDB (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
 
 ---
 
@@ -81,6 +82,10 @@ cd stripe
 
 # InfluxDB 3
 cd influxdb
+./install.sh --docker try-dremio --prebuilt
+
+# MariaDB
+cd mariadb
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -427,6 +432,36 @@ java -jar excel-importer/jars/dremio-excel-importer.jar \
 
 ---
 
+### [MariaDB](mariadb/)
+
+ARP/JDBC connector that exposes MariaDB databases as Dremio SQL tables. Full predicate, aggregation, sort, limit, and join pushdown via the official MariaDB Connector/J JDBC driver (bundled in the plugin JAR — no separate driver deployment). Uses `jdbc:mariadb://` URL scheme, which connects correctly to MariaDB 10.6+ (unlike Dremio's built-in MySQL connector which uses MySQL Connector/J).
+
+```sql
+-- Aggregation pushed to MariaDB
+SELECT region, COUNT(*) AS orders, SUM(total) AS revenue
+FROM mariadb.mydb.orders
+GROUP BY region ORDER BY revenue DESC;
+
+-- Date functions
+SELECT EXTRACT(YEAR FROM order_date) AS yr, COUNT(*) AS cnt
+FROM mariadb.mydb.orders GROUP BY yr;
+
+-- JOIN across tables
+SELECT u.name, o.total, o.status
+FROM mariadb.mydb.users u
+JOIN mariadb.mydb.orders o ON u.user_id = o.user_id
+WHERE o.status = 'delivered';
+
+-- Cross-source JOIN: MariaDB + Iceberg
+SELECT u.name, u.email, i.segment
+FROM mariadb.mydb.users u
+JOIN iceberg_minio.analytics.segments i ON u.user_id = i.user_id;
+```
+
+**Key features:** Single-JAR deploy (driver bundled) · full SQL pushdown · TINYINT/BOOL cast rewrites · EXTRACT/TIMESTAMPDIFF · string functions · SSL/TLS · system schema hiding
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -470,6 +505,7 @@ dremio-community-connectors/
 ├── stripe/          — Stripe connector (REST API v1 / Bearer token)
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 ├── influxdb/        — InfluxDB 3 connector (HTTP SQL API / Bearer token)
+├── mariadb/         — MariaDB connector (ARP/JDBC, driver bundled)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
