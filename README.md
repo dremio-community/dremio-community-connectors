@@ -28,6 +28,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Excel / CSV Importer](excel-importer/) | `.xlsx`, `.csv`, Google Sheets | Dremio REST API (user/password) | ✅ Working |
 | [InfluxDB](influxdb/) | InfluxDB 3 Core / Enterprise (HTTP SQL API) | Bearer API token | ✅ 23/23 tests passing |
 | [MariaDB](mariadb/) | MariaDB (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
+| [SingleStore](singlestore/) | SingleStore (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
 
 ---
 
@@ -86,6 +87,10 @@ cd influxdb
 
 # MariaDB
 cd mariadb
+./install.sh --docker try-dremio --prebuilt
+
+# SingleStore
+cd singlestore
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -462,6 +467,32 @@ JOIN iceberg_minio.analytics.segments i ON u.user_id = i.user_id;
 
 ---
 
+### [SingleStore](singlestore/)
+
+ARP/JDBC connector that exposes SingleStore databases as Dremio SQL tables. Full predicate, aggregation, sort, limit, and join pushdown via the official SingleStore JDBC driver (bundled in the plugin JAR). Handles SingleStore's MySQL 5.7-compatible dialect — in particular rewrites ANSI `DATE '...'` literals to plain string literals which SingleStore accepts.
+
+```sql
+-- Aggregation pushed to SingleStore
+SELECT region, COUNT(*) AS orders, SUM(total) AS revenue
+FROM singlestore.mydb.orders
+GROUP BY region ORDER BY revenue DESC;
+
+-- JOIN across tables
+SELECT u.name, o.total, o.status
+FROM singlestore.mydb.users u
+JOIN singlestore.mydb.orders o ON u.user_id = o.user_id
+WHERE o.status = 'delivered';
+
+-- Cross-source JOIN: SingleStore + Iceberg
+SELECT u.name, u.email, i.segment
+FROM singlestore.mydb.users u
+JOIN iceberg_minio.analytics.segments i ON u.user_id = i.user_id;
+```
+
+**Key features:** Single-JAR deploy · full SQL pushdown · date literal rewrite · TINYINT/BOOL cast rewrites · EXTRACT/TIMESTAMPDIFF · string functions · SSL/TLS
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -506,6 +537,7 @@ dremio-community-connectors/
 ├── excel-importer/  — Excel / CSV / Google Sheets importer
 ├── influxdb/        — InfluxDB 3 connector (HTTP SQL API / Bearer token)
 ├── mariadb/         — MariaDB connector (ARP/JDBC, driver bundled)
+├── singlestore/     — SingleStore connector (ARP/JDBC, driver bundled)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

@@ -1,0 +1,5 @@
+target/
+*.class
+*.log
+pom.xml.bak
+pom.xml.tmp
