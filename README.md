@@ -34,6 +34,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Neo4j](neo4j/) | Neo4j graph database (Bolt protocol) | Username/password, TLS | ✅ 28/28 tests passing |
 | [CockroachDB](cockroachdb/) | CockroachDB (PostgreSQL-compatible, JDBC/ARP) | Username/password, SSL | ✅ 41/41 tests passing |
 | [Jira](jira/) | Jira Cloud (REST API v3) | Email + API token (Basic auth) | ✅ 10/10 tables working |
+| [Prometheus](prometheus/) | Prometheus (HTTP API v1) | None / Basic auth / Bearer token | ✅ 6/6 tables working |
 
 ---
 
@@ -116,6 +117,10 @@ cd cockroachdb
 
 # Jira
 cd jira
+./install.sh --docker try-dremio --prebuilt
+
+# Prometheus
+cd prometheus
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -665,6 +670,45 @@ JOIN salesforce_source.Account s ON j.labels LIKE CONCAT('%', s.name, '%');
 
 ---
 
+### [Prometheus](prometheus/)
+
+REST connector for Prometheus via the HTTP API v1. Exposes 6 tables: `metrics` (all metric definitions from `/api/v1/metadata`), `targets` (active scrape targets and health), `alerts` (firing alerts), `rules` (alerting and recording rules), `labels` (all known label names), and `samples` (time series data points fetched via a configurable PromQL range query). Supports open Prometheus, Basic auth, and Bearer token (Grafana Cloud).
+
+```sql
+-- Target health — quickly see which jobs are down
+SELECT job, instance, health, last_scrape, last_error
+FROM prometheus_source.targets
+ORDER BY health DESC;
+
+-- Metric catalog by type
+SELECT type, COUNT(*) AS cnt
+FROM prometheus_source.metrics
+GROUP BY type ORDER BY cnt DESC;
+
+-- Average and range of a metric over the lookback window
+SELECT metric_name, AVG(sample_value) AS avg_val,
+       MIN(sample_value) AS min_val, MAX(sample_value) AS max_val
+FROM prometheus_source.samples
+GROUP BY metric_name ORDER BY avg_val DESC;
+
+-- Enrich samples with metric metadata
+SELECT s.metric_name, m.type, m.help, AVG(s.sample_value) AS avg_val
+FROM prometheus_source.samples s
+JOIN prometheus_source.metrics m ON s.metric_name = m.metric_name
+GROUP BY s.metric_name, m.type, m.help
+ORDER BY avg_val DESC;
+
+-- Cross-source: correlate firing alerts with Jira issues
+SELECT a.alert_name, a.labels, j.key, j.summary, j.status
+FROM prometheus_source.alerts a
+JOIN jira_source.issues j ON j.labels LIKE CONCAT('%', a.alert_name, '%')
+WHERE a.state = 'firing';
+```
+
+**Key features:** 6 tables · configurable PromQL expression for `samples` · adjustable lookback window and step interval · open/Basic/Bearer auth · `samples` columns named `sample_time` and `sample_value` (avoid SQL reserved words) · join-ready with Jira, PagerDuty, and other sources
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -715,6 +759,7 @@ dremio-community-connectors/
 ├── pinecone/        — Pinecone vector database connector (REST API)
 ├── neo4j/           — Neo4j graph database connector (Bolt protocol)
 ├── jira/            — Jira Cloud connector (REST API v3, 10 tables)
+├── prometheus/      — Prometheus connector (HTTP API v1, 6 tables)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

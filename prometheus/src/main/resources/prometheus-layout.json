@@ -1,0 +1,90 @@
+{
+  "sourceType": "PROMETHEUS",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "title": "Connection",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.url",
+            "label": "Prometheus URL",
+            "placeholder": "http://localhost:9090",
+            "tooltip": "Base URL of your Prometheus server. For Grafana Cloud, use your remote_read endpoint.",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Authentication",
+        "title": "Authentication (optional)",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.username",
+            "label": "Username",
+            "placeholder": "admin",
+            "tooltip": "Username for Basic auth. Leave blank if Prometheus has no auth.",
+            "size": "half"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.password",
+            "label": "Password",
+            "tooltip": "Password for Basic auth.",
+            "size": "half"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.bearerToken",
+            "label": "Bearer Token",
+            "tooltip": "Bearer token for Grafana Cloud or Prometheus with token-based auth. Takes precedence over Basic auth.",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Samples Table Options",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.samplesQuery",
+            "label": "PromQL Query",
+            "placeholder": "up",
+            "tooltip": "PromQL expression for the samples table. Use a specific metric name or selector to avoid fetching excessive data. Example: node_cpu_seconds_total{mode=\"idle\"}",
+            "size": "full"
+          },
+          {
+            "type": "number",
+            "propName": "config.lookbackHours",
+            "label": "Lookback Hours",
+            "placeholder": "1",
+            "tooltip": "Number of hours of history to fetch for the samples table.",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.stepSeconds",
+            "label": "Step (seconds)",
+            "placeholder": "60",
+            "tooltip": "Resolution step for range queries. Smaller values return more rows.",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.timeoutSeconds",
+            "label": "Timeout (seconds)",
+            "placeholder": "30",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
