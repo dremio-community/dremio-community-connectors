@@ -30,6 +30,8 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [MariaDB](mariadb/) | MariaDB (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
 | [SingleStore](singlestore/) | SingleStore (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
 | [Redis](redis/) | Redis hashes (native) | Password (AUTH), database select | ✅ 37/37 tests passing |
+| [Pinecone](pinecone/) | Pinecone vector database (REST API) | API key | ✅ 25/25 tests passing |
+| [Neo4j](neo4j/) | Neo4j graph database (Bolt protocol) | Username/password, TLS | ✅ 28/28 tests passing |
 
 ---
 
@@ -96,6 +98,14 @@ cd singlestore
 
 # Redis
 cd redis
+./install.sh --docker try-dremio --prebuilt
+
+# Pinecone
+cd pinecone
+./install.sh --docker try-dremio --prebuilt
+
+# Neo4j
+cd neo4j
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -526,6 +536,56 @@ JOIN iceberg_minio.analytics.segments i ON u._id = i.user_id;
 
 ---
 
+### [Pinecone](pinecone/)
+
+Native connector that queries Pinecone vector database indexes as SQL tables using the Pinecone REST API. Each index is exposed as a table with `_id`, `values` (the embedding vector as a JSON array string), and any metadata fields — with types dynamically inferred by sampling. No JDBC driver required.
+
+```sql
+-- Browse your indexes as tables
+SELECT _id, name, price, category FROM pinecone_source.products LIMIT 10;
+
+-- Filter and aggregate over metadata
+SELECT category, COUNT(*) AS cnt, AVG(price) AS avg_price
+FROM pinecone_source.products
+GROUP BY category ORDER BY avg_price DESC;
+
+-- Access the raw embedding vector
+SELECT _id, values FROM pinecone_source.products WHERE category = 'electronics';
+
+-- Cross-source JOIN: Pinecone + Iceberg
+SELECT p._id, p.name, p.price, i.segment
+FROM pinecone_source.products p
+JOIN iceberg_minio.analytics.segments i ON p._id = i.vector_id;
+```
+
+**Key features:** Index auto-discovery · dynamic schema inference (Float8, Bool, BigInt, Utf8) · `_id` and `values` always present · namespace filtering · cursor pagination · no JDBC driver
+
+---
+
+### [Neo4j](neo4j/)
+
+Native connector that exposes Neo4j graph database node labels as SQL tables using the Bolt protocol. Schema is inferred by sampling nodes per label. Uses the Neo4j Java Driver 4.4.x (bundled and shaded) for Java 11 compatibility. Supports encrypted connections via `bolt+s://`.
+
+```sql
+-- Each node label is a table
+SELECT name, born FROM neo4j_source.Person WHERE born > 1970 ORDER BY born DESC;
+
+-- Aggregations
+SELECT released, COUNT(*) AS cnt FROM neo4j_source.Movie GROUP BY released ORDER BY released DESC;
+
+-- Boolean properties
+SELECT name, active FROM neo4j_source.Person WHERE active = true;
+
+-- Cross-source JOIN: Neo4j + Iceberg
+SELECT p.name, p.born, i.segment
+FROM neo4j_source.Person p
+JOIN iceberg_minio.analytics.segments i ON p.person_id = i.external_id;
+```
+
+**Key features:** Label auto-discovery · dynamic schema inference · SKIP/LIMIT pagination · Bolt + TLS (`bolt+s://`) · multi-database · driver shaded (Netty/Reactor conflict-free) · no JDBC driver
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -572,6 +632,8 @@ dremio-community-connectors/
 ├── mariadb/         — MariaDB connector (ARP/JDBC, driver bundled)
 ├── singlestore/     — SingleStore connector (ARP/JDBC, driver bundled)
 ├── redis/           — Redis connector (native, SCAN+HGETALL)
+├── pinecone/        — Pinecone vector database connector (REST API)
+├── neo4j/           — Neo4j graph database connector (Bolt protocol)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
