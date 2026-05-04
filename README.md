@@ -32,6 +32,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Redis](redis/) | Redis hashes (native) | Password (AUTH), database select | ✅ 37/37 tests passing |
 | [Pinecone](pinecone/) | Pinecone vector database (REST API) | API key | ✅ 25/25 tests passing |
 | [Neo4j](neo4j/) | Neo4j graph database (Bolt protocol) | Username/password, TLS | ✅ 28/28 tests passing |
+| [CockroachDB](cockroachdb/) | CockroachDB (PostgreSQL-compatible, JDBC/ARP) | Username/password, SSL | ✅ 41/41 tests passing |
 
 ---
 
@@ -106,6 +107,10 @@ cd pinecone
 
 # Neo4j
 cd neo4j
+./install.sh --docker try-dremio --prebuilt
+
+# CockroachDB
+cd cockroachdb
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -586,6 +591,37 @@ JOIN iceberg_minio.analytics.segments i ON p.person_id = i.external_id;
 
 ---
 
+### [CockroachDB](cockroachdb/)
+
+ARP/JDBC connector that exposes CockroachDB databases as Dremio SQL tables. CockroachDB is wire-compatible with PostgreSQL, so this connector uses the standard PostgreSQL JDBC driver (42.7.x, bundled in the plugin JAR). Full predicate, aggregation, sort, limit, and join pushdown including FULL OUTER JOIN support. Tables are exposed as `source.public.table`.
+
+```sql
+-- Filter and aggregate pushdown
+SELECT region, COUNT(*) AS orders, SUM(total) AS revenue
+FROM cockroach_source.public.orders
+GROUP BY region ORDER BY revenue DESC;
+
+-- JOIN across tables
+SELECT u.name, o.total, o.status
+FROM cockroach_source.public.users u
+JOIN cockroach_source.public.orders o ON u.user_id = o.user_id
+WHERE o.status = 'delivered';
+
+-- FULL OUTER JOIN (supported)
+SELECT u.name, o.order_id
+FROM cockroach_source.public.users u
+FULL OUTER JOIN cockroach_source.public.orders o ON u.user_id = o.user_id;
+
+-- Date extraction
+SELECT EXTRACT(YEAR FROM order_date) AS yr, COUNT(*) AS cnt
+FROM cockroach_source.public.orders
+GROUP BY yr;
+```
+
+**Key features:** Single-JAR deploy · PostgreSQL JDBC (wire-compatible) · full SQL pushdown · FULL OUTER JOIN · EXTRACT/DATE_TRUNC · interval arithmetic for date add · AGE() for date diff · SSL/TLS · schema filtering · 41/41 smoke tests
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -621,6 +657,7 @@ dremio-community-connectors/
 ├── delta/           — Delta Lake connector
 ├── pinot/           — Apache Pinot connector (ARP/JDBC)
 ├── dynamodb/        — Amazon DynamoDB connector (native)
+├── cockroachdb/     — CockroachDB connector (ARP/JDBC, PostgreSQL-compatible)
 ├── splunk/          — Splunk connector (REST API / SPL)
 ├── salesforce/      — Salesforce connector (REST API / SOQL)
 ├── zendesk/         — Zendesk connector (REST API)
