@@ -1,0 +1,68 @@
+{
+  "sourceType": "NEO4J",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Neo4j for new node labels (tables)"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.boltUri",
+            "size": "FULL",
+            "label": "Bolt URI",
+            "placeholder": "bolt://localhost:7687",
+            "tooltip": "Neo4j Bolt URI. Use bolt:// for direct connections or neo4j:// for routing."
+          },
+          {
+            "propName": "config.database",
+            "label": "Database",
+            "placeholder": "neo4j",
+            "tooltip": "Neo4j database name (default: neo4j). Leave blank to use the default database."
+          }
+        ]
+      },
+      {
+        "name": "Credentials",
+        "elements": [
+          {
+            "propName": "config.username",
+            "label": "Username",
+            "placeholder": "neo4j",
+            "tooltip": "Neo4j username for authentication."
+          },
+          {
+            "propName": "config.password",
+            "label": "Password",
+            "type": "password",
+            "tooltip": "Neo4j password for authentication."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.sampleSize",
+            "label": "Schema Sample Size",
+            "type": "number",
+            "tooltip": "Number of nodes to sample per label for schema inference (default 50)."
+          },
+          {
+            "propName": "config.fetchBatchSize",
+            "label": "Fetch Batch Size",
+            "type": "number",
+            "tooltip": "Number of rows fetched per batch using SKIP/LIMIT pagination (default 500)."
+          },
+          {
+            "propName": "config.connectionTimeoutSeconds",
+            "label": "Connection Timeout (seconds)",
+            "type": "number",
+            "tooltip": "Bolt connection timeout in seconds (default 30)."
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "sourceType": "PINECONE",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "credentials",
+            "propName": "config.apiKey",
+            "label": "API Key",
+            "tooltip": "Pinecone API key. Find it in the Pinecone Console under API Keys.",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Connection",
+        "title": "Connection",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.controlPlaneUrl",
+            "label": "Control Plane URL",
+            "placeholder": "https://api.pinecone.io",
+            "tooltip": "Pinecone control plane URL. Leave default unless using a local mock.",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.namespace",
+            "label": "Namespace",
+            "placeholder": "",
+            "tooltip": "Pinecone namespace to query. Leave empty for the default namespace.",
+            "size": "half"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Number of vector IDs to fetch per API call.",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.sampleSize",
+            "label": "Sample Size",
+            "placeholder": "20",
+            "tooltip": "Number of vectors to sample for schema inference.",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "60",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
