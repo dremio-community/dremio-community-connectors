@@ -29,6 +29,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [InfluxDB](influxdb/) | InfluxDB 3 Core / Enterprise (HTTP SQL API) | Bearer API token | ✅ 23/23 tests passing |
 | [MariaDB](mariadb/) | MariaDB (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
 | [SingleStore](singlestore/) | SingleStore (JDBC/ARP) | Username/password, SSL | ✅ 40/40 tests passing |
+| [Redis](redis/) | Redis hashes (native) | Password (AUTH), database select | ✅ 37/37 tests passing |
 
 ---
 
@@ -91,6 +92,10 @@ cd mariadb
 
 # SingleStore
 cd singlestore
+./install.sh --docker try-dremio --prebuilt
+
+# Redis
+cd redis
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -493,6 +498,34 @@ JOIN iceberg_minio.analytics.segments i ON u.user_id = i.user_id;
 
 ---
 
+### [Redis](redis/)
+
+Native connector that reads Redis Hash data as SQL tables. Discovers tables by scanning all keys and grouping by prefix (`user:1`, `user:2` → table `user`). Infers Arrow schema from sampled hash field values. Executes queries via `SCAN` + `HGETALL` with client-side filtering, aggregation, ORDER BY, and JOIN by Dremio's engine. Uses Jedis client bundled in the plugin JAR.
+
+```sql
+-- Full scan with filter (Dremio evaluates WHERE after SCAN+HGETALL)
+SELECT name, country, score FROM redis.user WHERE country = 'US';
+
+-- Aggregation
+SELECT country, COUNT(*) AS users, AVG(score) AS avg_score
+FROM redis.user GROUP BY country ORDER BY avg_score DESC;
+
+-- JOIN across Redis tables
+SELECT u.name, o.total, o.status
+FROM redis.user u
+JOIN redis.order o ON u._id = o.user_id
+WHERE o.status = 'delivered';
+
+-- Cross-source JOIN: Redis + Iceberg
+SELECT u.name, u.email, i.segment
+FROM redis.user u
+JOIN iceberg_minio.analytics.segments i ON u._id = i.user_id;
+```
+
+**Key features:** Key-pattern table discovery · schema type inference · SCAN+HGETALL read · Jedis bundled · AUTH password · database index · configurable key delimiter · 37/37 smoke tests
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -538,6 +571,7 @@ dremio-community-connectors/
 ├── influxdb/        — InfluxDB 3 connector (HTTP SQL API / Bearer token)
 ├── mariadb/         — MariaDB connector (ARP/JDBC, driver bundled)
 ├── singlestore/     — SingleStore connector (ARP/JDBC, driver bundled)
+├── redis/           — Redis connector (native, SCAN+HGETALL)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

@@ -1,0 +1,80 @@
+{
+  "sourceType": "REDIS",
+  "metadataRefresh": {
+    "datasetDiscoveryTooltip": "How often Dremio will scan Redis for new key patterns (tables)"
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Connection",
+        "elements": [
+          {
+            "propName": "config.host",
+            "size": "FULL",
+            "label": "Host",
+            "placeholder": "e.g. localhost",
+            "tooltip": "Redis server hostname or IP address"
+          },
+          {
+            "propName": "config.port",
+            "label": "Port",
+            "type": "number",
+            "tooltip": "Redis server port (default 6379)"
+          },
+          {
+            "propName": "config.database",
+            "label": "Database Index",
+            "type": "number",
+            "tooltip": "Redis logical database index (0–15, default 0)"
+          }
+        ]
+      },
+      {
+        "name": "Credentials",
+        "elements": [
+          {
+            "propName": "config.password",
+            "label": "Password",
+            "type": "password",
+            "tooltip": "Redis AUTH password. Leave blank if authentication is not enabled."
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "elements": [
+          {
+            "propName": "config.keyDelimiter",
+            "label": "Key Delimiter",
+            "placeholder": ":",
+            "tooltip": "Character(s) that separate the table name from the key ID (default \":\"). Keys like \"user:1\" use \":\" to split into table \"user\" with ID \"1\"."
+          },
+          {
+            "propName": "config.sampleSize",
+            "label": "Schema Sample Size",
+            "type": "number",
+            "tooltip": "Number of hash keys to sample per table for schema inference (default 50)."
+          },
+          {
+            "propName": "config.scanCount",
+            "label": "SCAN Batch Size",
+            "type": "number",
+            "tooltip": "COUNT hint passed to Redis SCAN command per batch (default 100)."
+          },
+          {
+            "propName": "config.connectTimeoutMs",
+            "label": "Connection Timeout (ms)",
+            "type": "number",
+            "tooltip": "TCP connection timeout in milliseconds (default 5000)."
+          },
+          {
+            "propName": "config.socketTimeoutMs",
+            "label": "Socket Timeout (ms)",
+            "type": "number",
+            "tooltip": "Socket read timeout in milliseconds (default 30000)."
+          }
+        ]
+      }
+    ]
+  }
+}
