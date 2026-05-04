@@ -5,7 +5,7 @@
 A Dremio storage plugin that adds **read support for Redis hash data**.
 
 Discovers "tables" by scanning Redis keys and grouping them by prefix
-(e.g., keys `user:1`, `user:2` → table `user`). Infers Arrow schema by
+(e.g., keys `users:1`, `users:2` → table `users`). Infers Arrow schema by
 sampling hash fields. Executes queries via `SCAN` + `HGETALL` with
 client-side predicate evaluation by Dremio's query engine.
 
@@ -18,7 +18,7 @@ separate client deployment required.
 
 ```
 SQL:  SELECT name, country, COUNT(*)
-      FROM redis_source.user
+      FROM redis_source.users
       WHERE country = 'US'
       GROUP BY country
 
@@ -27,8 +27,8 @@ Dremio Planner
   └── RedisScanPrule → RedisScanPrel (physical)
         └── RedisGroupScan → RedisSubScan
               └── RedisRecordReader
-                    ├── SCAN user:* (iterate all matching keys)
-                    └── HGETALL user:{id} (read each hash)
+                    ├── SCAN users:* (iterate all matching keys)
+                    └── HGETALL users:{id} (read each hash)
 
 Dremio Filter Operator (client-side WHERE evaluation)
 Dremio Aggregate Operator (GROUP BY, COUNT, SUM, AVG, MIN, MAX)
@@ -52,18 +52,18 @@ Redis has no native concept of tables. This connector discovers tables by
 scanning all keys and grouping by the prefix before the key delimiter (`:` by default):
 
 ```
-Redis keys:        Tables discovered:
-  user:1    ──┐
-  user:2    ──┤──→  user  (5 rows)
-  user:3    ──┘
-  order:1   ──┐
-  order:2   ──┤──→  order (6 rows)
-  order:3   ──┘
-  product:1 ──→     product (6 rows)
+Redis keys:         Tables discovered:
+  users:1    ──┐
+  users:2    ──┤──→  users   (5 rows)
+  users:3    ──┘
+  orders:1   ──┐
+  orders:2   ──┤──→  orders  (6 rows)
+  orders:3   ──┘
+  product:1  ──→     product (6 rows)
 ```
 
 The key suffix (the part after the delimiter) becomes the special `_id` column
-in each table. For `user:1`, `_id = "1"`.
+in each table. For `users:1`, `_id = "1"`.
 
 ### Schema Inference
 
@@ -141,25 +141,25 @@ Open `http://localhost:9047` → **Sources → + → Redis** and fill in:
 
 ```sql
 -- Full table scan
-SELECT * FROM redis.user LIMIT 10;
+SELECT * FROM redis.users LIMIT 10;
 
 -- Filter (evaluated by Dremio after SCAN)
 SELECT name, country, score
-FROM redis.user
+FROM redis.users
 WHERE country = 'US' AND score > 80;
 
 -- Aggregation
-SELECT country, COUNT(*) AS users, AVG(score) AS avg_score
-FROM redis.user
+SELECT country, COUNT(*) AS cnt, AVG(score) AS avg_score
+FROM redis.users
 GROUP BY country ORDER BY avg_score DESC;
 
 -- ORDER BY
-SELECT name, score FROM redis.user ORDER BY score DESC LIMIT 5;
+SELECT name, score FROM redis.users ORDER BY score DESC LIMIT 5;
 
 -- JOIN across Redis tables
 SELECT u.name, o.total, o.status
-FROM redis.user u
-JOIN redis.order o ON u._id = o.user_id
+FROM redis.users u
+JOIN redis.orders o ON u._id = o.user_id
 WHERE o.status = 'delivered';
 
 -- CASE expression
@@ -167,17 +167,33 @@ SELECT name,
        CASE WHEN score >= 90 THEN 'high'
             WHEN score >= 70 THEN 'mid'
             ELSE 'low' END AS tier
-FROM redis.user ORDER BY score DESC;
+FROM redis.users ORDER BY score DESC;
 
 -- Cross-source JOIN: Redis + Iceberg
 SELECT u.name, u.email, i.segment
-FROM redis.user u
+FROM redis.users u
 JOIN iceberg.analytics.segments i ON u._id = i.user_id;
 ```
 
 ---
 
 ## Key Design Notes
+
+### Reserved SQL Keywords as Table Names
+
+Some Redis key prefixes collide with SQL reserved words (`user`, `order`, `group`, `table`). Dremio's SQL editor blocks submission of queries against reserved-word table names even when they are double-quoted.
+
+**Recommendation:** avoid reserved words as key prefixes. Use plural or prefixed forms:
+
+| Avoid | Use instead |
+|---|---|
+| `user:*` | `users:*` |
+| `order:*` | `orders:*` |
+| `group:*` | `groups:*` |
+
+If your Redis data already uses reserved-word prefixes, you can still query them via the Dremio REST API or Dremio JDBC — just not through the web SQL editor.
+
+---
 
 ### Key Pattern Discovery
 
@@ -188,7 +204,7 @@ Use the `Schema Cache TTL` setting to control refresh frequency.
 ### `_id` Column
 
 Every table has a synthetic `_id` column containing the key suffix (the part
-after the first delimiter). For `user:123`, `_id = "123"`. The `_id` type is
+after the first delimiter). For `users:123`, `_id = "123"`. The `_id` type is
 always `Utf8` regardless of content.
 
 ### Client-Side Filtering
