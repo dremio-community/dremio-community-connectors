@@ -1,0 +1,69 @@
+{
+  "sourceType": "JIRA",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.domain",
+            "label": "Jira Domain",
+            "placeholder": "mycompany",
+            "tooltip": "Your Atlassian subdomain (the part before .atlassian.net)",
+            "size": "half"
+          },
+          {
+            "type": "text",
+            "propName": "config.email",
+            "label": "Email",
+            "placeholder": "user@example.com",
+            "tooltip": "Atlassian account email address used for API authentication",
+            "size": "half"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.apiToken",
+            "label": "API Token",
+            "tooltip": "Jira API token. Generate at id.atlassian.com → Security → API tokens.",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.issueJql",
+            "label": "Issue JQL Filter",
+            "placeholder": "ORDER BY created ASC",
+            "tooltip": "JQL filter applied to the issues table. Default returns all issues. Example: project = MYPROJ AND status != Done",
+            "size": "full"
+          },
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Records fetched per API call (max 100 for issues)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.timeoutSeconds",
+            "label": "Timeout (seconds)",
+            "placeholder": "60",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}

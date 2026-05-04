@@ -33,6 +33,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Pinecone](pinecone/) | Pinecone vector database (REST API) | API key | ✅ 25/25 tests passing |
 | [Neo4j](neo4j/) | Neo4j graph database (Bolt protocol) | Username/password, TLS | ✅ 28/28 tests passing |
 | [CockroachDB](cockroachdb/) | CockroachDB (PostgreSQL-compatible, JDBC/ARP) | Username/password, SSL | ✅ 41/41 tests passing |
+| [Jira](jira/) | Jira Cloud (REST API v3) | Email + API token (Basic auth) | ✅ 10/10 tables working |
 
 ---
 
@@ -111,6 +112,10 @@ cd neo4j
 
 # CockroachDB
 cd cockroachdb
+./install.sh --docker try-dremio --prebuilt
+
+# Jira
+cd jira
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -622,6 +627,44 @@ GROUP BY yr;
 
 ---
 
+### [Jira](jira/)
+
+REST connector for Jira Cloud that exposes 10 tables from the Jira REST API v3 using Basic auth (email + API token). Cursor-based pagination for the issues table (Jira's `/search/jql` API); offset pagination for projects, users, and boards; single-fetch for small reference tables (priorities, issue types, statuses, fields, components, versions). Supports custom JQL filters for the issues table.
+
+```sql
+-- Open issues by status
+SELECT status, COUNT(*) AS cnt
+FROM jira_source.issues
+WHERE status != 'Done'
+GROUP BY status ORDER BY cnt DESC;
+
+-- In-flight work by assignee
+SELECT assignee_display_name, COUNT(*) AS in_progress
+FROM jira_source.issues
+WHERE status = 'In Progress'
+GROUP BY assignee_display_name ORDER BY in_progress DESC;
+
+-- Issues by priority
+SELECT priority, issue_type, COUNT(*) AS cnt
+FROM jira_source.issues
+GROUP BY priority, issue_type ORDER BY cnt DESC;
+
+-- Enrich with project metadata
+SELECT i.key, i.summary, i.priority, p.name AS project, p.project_type_key
+FROM jira_source.issues i
+JOIN jira_source.projects p ON i.project_key = p.key
+WHERE i.status != 'Done';
+
+-- Cross-source JOIN: Jira + Salesforce
+SELECT j.key, j.summary, s.name AS account
+FROM jira_source.issues j
+JOIN salesforce_source.Account s ON j.labels LIKE CONCAT('%', s.name, '%');
+```
+
+**Key features:** 10 tables · cursor pagination for issues (Jira Cloud `search/jql` API) · custom JQL filter · ADF description extraction · `story_points`, `time_original_estimate`, `time_spent` · join-ready with any other Dremio source
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -671,6 +714,7 @@ dremio-community-connectors/
 ├── redis/           — Redis connector (native, SCAN+HGETALL)
 ├── pinecone/        — Pinecone vector database connector (REST API)
 ├── neo4j/           — Neo4j graph database connector (Bolt protocol)
+├── jira/            — Jira Cloud connector (REST API v3, 10 tables)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/
