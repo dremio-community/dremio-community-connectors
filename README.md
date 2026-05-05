@@ -35,6 +35,8 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [CockroachDB](cockroachdb/) | CockroachDB (PostgreSQL-compatible, JDBC/ARP) | Username/password, SSL | ✅ 41/41 tests passing |
 | [Jira](jira/) | Jira Cloud (REST API v3) | Email + API token (Basic auth) | ✅ 10/10 tables working |
 | [Prometheus](prometheus/) | Prometheus (HTTP API v1) | None / Basic auth / Bearer token | ✅ 6/6 tables working |
+| [HubSpot](hubspot/) | HubSpot CRM (REST API) | Private app access token | ✅ Working |
+| [Google Cloud Spanner](spanner/) | Cloud Spanner (REST API) | Service account JSON / emulator | ✅ Working |
 
 ---
 
