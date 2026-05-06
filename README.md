@@ -37,6 +37,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [Prometheus](prometheus/) | Prometheus (HTTP API v1) | None / Basic auth / Bearer token | ✅ 6/6 tables working |
 | [HubSpot](hubspot/) | HubSpot CRM (REST API) | Private app access token | ✅ Working |
 | [Google Cloud Spanner](spanner/) | Cloud Spanner (REST API) | Service account JSON / emulator | ✅ Working |
+| [ServiceNow](servicenow/) | ServiceNow Table API (REST) | Basic auth (username/password) | ✅ Working |
 
 ---
 
@@ -123,6 +124,10 @@ cd jira
 
 # Prometheus
 cd prometheus
+./install.sh --docker try-dremio --prebuilt
+
+# ServiceNow
+cd servicenow
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -711,6 +716,42 @@ WHERE a.state = 'firing';
 
 ---
 
+### [ServiceNow](servicenow/)
+
+Native connector that queries ServiceNow data as SQL tables using the ServiceNow REST Table API. No JDBC driver required — uses Java 11's built-in `HttpClient` with Basic Auth. Exposes 5 core tables — incident, task, sys_user, problem, and change_request — with cursor-based pagination via HTTP `Link` headers. Timestamps are natively converted from ServiceNow's space-delimited format to Arrow `TIMESTAMP(MILLISECOND)`.
+
+```bash
+./add-servicenow-source.sh --name servicenow \
+  --instance-url https://dev12345.service-now.com \
+  --username admin \
+  --password secret \
+  --dremio-password YOUR_DREMIO_PASSWORD
+```
+
+```sql
+-- Recent open incidents
+SELECT number, short_description, priority, opened_at
+FROM servicenow.incident
+WHERE state = 1
+ORDER BY opened_at DESC
+LIMIT 20;
+
+-- Users created in the last 30 days
+SELECT user_name, first_name, last_name, email, sys_created_on
+FROM servicenow.sys_user
+WHERE sys_created_on >= CURRENT_TIMESTAMP - INTERVAL '30' DAY;
+
+-- Cross-source JOIN: ServiceNow incidents + Jira issues
+SELECT i.number, i.short_description, j.key AS jira_key, j.summary
+FROM servicenow.incident i
+JOIN jira_source.issues j ON j.labels LIKE CONCAT('%', i.number, '%')
+WHERE i.state = 1;
+```
+
+**Key features:** 5 ITSM tables · cursor pagination via HTTP `Link` headers · static Arrow schema · timestamp normalization · Basic auth · no JDBC driver
+
+---
+
 ## Requirements
 
 | Requirement | Details |
@@ -762,6 +803,7 @@ dremio-community-connectors/
 ├── neo4j/           — Neo4j graph database connector (Bolt protocol)
 ├── jira/            — Jira Cloud connector (REST API v3, 10 tables)
 ├── prometheus/      — Prometheus connector (HTTP API v1, 6 tables)
+├── servicenow/      — ServiceNow connector (REST Table API, Basic auth)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
     └── ISSUE_TEMPLATE/

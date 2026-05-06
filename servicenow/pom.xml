@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.dremio.plugins</groupId>
+    <artifactId>dremio-servicenow-connector</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Dremio ServiceNow Connector</name>
+    <description>
+        Native Dremio 26.x connector for ServiceNow via REST API.
+        No JDBC driver — uses Java 11 java.net.http.HttpClient with Basic Auth.
+        Exposes tickets, users, organizations, groups, ticket_metrics, and satisfaction_ratings.
+    </description>
+
+    <developers>
+        <developer>
+            <id>mshainman</id>
+            <name>Mark Shainman</name>
+            <roles>
+                <role>architect</role>
+                <role>developer</role>
+            </roles>
+        </developer>
+    </developers>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <dremio.version>26.0.5-202509091642240013-f5051a07</dremio.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>dremio-public</id>
+            <url>https://maven.dremio.com/public/</url>
+        </repository>
+        <repository>
+            <id>dremio-free</id>
+            <url>https://maven.dremio.com/free/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Dremio plugin APIs — provided by Dremio at runtime -->
+        <dependency>
+            <groupId>com.dremio</groupId>
+            <artifactId>dremio-common</artifactId>
+            <version>${dremio.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.dremio.sabot</groupId>
+            <artifactId>dremio-sabot-kernel</artifactId>
+            <version>${dremio.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.dremio</groupId>
+            <artifactId>dremio-connector</artifactId>
+            <version>${dremio.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Jackson — provided by Dremio -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Logging — provided by Dremio -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Arrow — provided by Dremio -->
+        <dependency>
+            <groupId>org.apache.arrow</groupId>
+            <artifactId>arrow-vector</artifactId>
+            <version>13.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Google Guava — provided by Dremio -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.1.2-jre</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.3.0</version>
+                <configuration>
+                    <finalName>dremio-servicenow-connector-${project.version}</finalName>
+                    <outputDirectory>${project.basedir}/jars</outputDirectory>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

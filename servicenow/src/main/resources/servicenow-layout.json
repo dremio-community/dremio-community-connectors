@@ -1,0 +1,61 @@
+{
+  "sourceType": "SERVICENOW_REST",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "text",
+            "propName": "config.instanceUrl",
+            "label": "Instance URL",
+            "placeholder": "https://dev12345.service-now.com",
+            "tooltip": "Your ServiceNow instance URL",
+            "size": "full"
+          },
+          {
+            "type": "text",
+            "propName": "config.username",
+            "label": "Username",
+            "placeholder": "admin",
+            "tooltip": "ServiceNow integration user",
+            "size": "full"
+          },
+          {
+            "type": "credentials",
+            "propName": "config.password",
+            "label": "Password",
+            "tooltip": "ServiceNow integration user password",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Records per API page (max 100 for most ServiceNow endpoints)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
