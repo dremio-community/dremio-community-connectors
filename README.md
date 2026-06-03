@@ -38,7 +38,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [HubSpot](hubspot/) | HubSpot CRM (REST API) | Private app access token | ✅ Working |
 | [Google Cloud Spanner](spanner/) | Cloud Spanner (REST API) | Service account JSON / emulator | ✅ Working |
 | [ServiceNow](servicenow/) | ServiceNow Table API (REST) | Basic auth (username/password) | ✅ Working |
-| [Talend Studio](talend/) | Dremio (Arrow Flight RPC) | Personal Access Token / username | ✅ 2/2 tests passing |
+| [Talend Studio](talend/) | Dremio (Arrow Flight RPC + REST API) | Personal Access Token / username | ✅ 4/4 tests passing |
 
 ---
 
@@ -760,27 +760,28 @@ WHERE i.state = 1;
 
 ### [Talend Studio](talend/)
 
-Native Talend Studio component that extracts data from Dremio using the Apache Arrow Flight RPC protocol — bypassing JDBC entirely for sub-second, high-throughput reads. Unlike the other connectors in this repo (which are Dremio storage plugins), this is a Talend Component Archive (`.car`) that installs directly into Talend Studio and exposes a `tDremioInput` component in the palette.
+Native Talend Studio connector for **full ELT with Dremio**. Unlike the other connectors in this repo (which are Dremio storage plugins), this is a Talend Component Archive (`.car`) that installs into Talend Studio and adds three components to your palette.
 
 ```bash
-# Build the .car archive
 cd talend
 ./build.sh
-# Then drag-and-drop target/dremio-talend-connector-*.car into Talend Studio
+# Drag target/dremio-talend-connector-*.car into Talend Studio
 ```
 
-```sql
--- Set in the DremioInput component's SQL Query field
-SELECT * FROM "Samples"."samples.dremio.com"."NYC-taxi-trips" LIMIT 1000;
+| Component | Role |
+|---|---|
+| `tDremioInput` | **Extract** — reads any SQL query via Arrow Flight RPC |
+| `tDremioOutput` | **Load** — writes Talend records into a Dremio Iceberg table |
+| `tDremioExecuteSQL` | **Transform** — fires any SQL (CTAS, INSERT, DDL) and waits for completion |
 
-SELECT region, SUM(revenue) AS total
-FROM my_catalog.sales.transactions
-GROUP BY region ORDER BY total DESC;
+```
+# Full ELT pattern in a single Talend job:
+[Source] → tDremioOutput (load into staging)
+             → tDremioExecuteSQL: INSERT INTO target SELECT … FROM staging
+                → tDremioInput (read results downstream)
 ```
 
-Configure the DataStore with your Dremio host, Arrow Flight port (default `32010`, or `443` for Dremio Cloud), and a Personal Access Token. Enable SSL for Dremio Cloud or TLS-secured deployments.
-
-**Key features:** Arrow Flight RPC (no JDBC) · parallel partition reads via `@Split` + `FlightEndpoint` tickets · full Arrow type mapping (Varchar, Int, BigInt, Float, Double, Decimal, Boolean, Timestamp, Date) · Dremio Cloud SSL/TLS · Studio "Test Connection" health check · no external driver deployment
+**Key features:** Arrow Flight RPC reads (no JDBC) · parallel `@Split` partition reads · batched INSERT writes via REST API · APPEND and OVERWRITE modes · SQL job polling with result record · Dremio Cloud SSL/TLS · Studio "Test Connection" health check
 
 ---
 

@@ -1,63 +1,106 @@
 # Dremio Talend Connector
 
-A native, high-performance Talend Studio component for extracting data from Dremio (OSS, Enterprise Software, and Dremio Cloud). 
+A native, high-performance Talend Studio connector for **full ELT with Dremio** — extract data from Dremio, load data into Dremio, and trigger SQL transformations inside Dremio, all from a single Talend job.
 
-Unlike standard generic JDBC drivers, this native component utilizes **Apache Arrow Flight RPC**, providing extreme performance by bypassing the coordinator and streaming partitions in parallel directly from Dremio's executor nodes.
+The read component uses **Apache Arrow Flight RPC** for maximum throughput, bypassing JDBC entirely and streaming partitions in parallel directly from Dremio's executor nodes. The write and SQL components use the **Dremio REST API** for broad compatibility across all Dremio editions.
+
+## Components
+
+| Component | Palette Name | Role |
+|---|---|---|
+| `DremioInputMapper` | `tDremioInput` | **Extract** — reads any Dremio SQL query via Arrow Flight |
+| `DremioOutputSink` | `tDremioOutput` | **Load** — writes Talend records into a Dremio Iceberg table |
+| `DremioExecuteSQLMapper` | `tDremioExecuteSQL` | **Transform** — submits any SQL (DDL/DML) and waits for completion |
+
+### ELT Pattern
+
+```
+[Source] → tDremioOutput → (data lands in Dremio staging table)
+                              ↓
+                    tDremioExecuteSQL: INSERT INTO target SELECT ... FROM staging
+                              ↓
+                    tDremioInput → [Downstream]
+```
 
 ## Features
 
-- **Arrow Flight Protocol**: Sub-second latency data extraction by avoiding JDBC serialization bottlenecks.
-- **Parallel Partitioning**: Native Talend `@Split` logic seamlessly maps to Dremio `FlightEndpoint` tickets.
-- **Strict Data Type Mapping**: Dremio Arrow Vectors (`Float8Vector`, `TimeStampVector`, etc.) are mapped exactly to native Talend Studio types, preventing downstream casting errors.
-- **Dremio Cloud Support**: Native SSL/TLS toggle (`Location.forGrpcTls`) for secure Cloud endpoints.
+- **Arrow Flight Protocol**: Sub-second latency extraction by avoiding JDBC serialization bottlenecks.
+- **Parallel Partitioning**: `@Split` logic maps to Dremio `FlightEndpoint` tickets for parallel reads.
+- **Batch INSERT Writes**: Records are buffered and flushed as batched `INSERT INTO ... VALUES (...)` statements.
+- **APPEND / OVERWRITE modes**: `tDremioOutput` can append to or fully replace a table's contents.
+- **SQL Job Polling**: `tDremioExecuteSQL` submits SQL, polls until the job reaches a terminal state, and emits a result record with `job_id`, `job_state`, and `error_message`.
+- **Dremio Cloud Support**: SSL/TLS toggle for Cloud endpoints on both Flight and REST.
 - **Health Checks**: Live Studio "Test Connection" button powered by TCK `@HealthCheck`.
 
 ## Prerequisites
 
 - Talend Studio (v8.x+)
 - Dremio OSS / Software / Cloud (v20.x+)
-- Personal Access Token (PAT) for Dremio Software/Cloud authentication (or standard username for OSS).
+- Personal Access Token (PAT) for Dremio Software/Cloud authentication (or username for OSS)
 
 ## Installation
 
 ### Building the Component Archive (.car)
 
-This project uses the Talend Component Kit (TCK) and the Maven Wrapper, meaning you do not need Maven installed globally to build it.
-
 ```bash
-# Compile and build the Talend component archive (.car)
 ./build.sh
 ```
 
-This script runs `./mvnw clean install` and packages the project.
+This runs `./mvnw clean install` and produces a `.car` archive in `target/`.
 
 ### Deploying to Talend Studio
 
-1. Navigate to the `target/` directory.
-2. Locate the generated `.car` file (e.g., `dremio-talend-connector-1.0.0-SNAPSHOT.car`).
-3. Open Talend Studio.
-4. Drag and drop the `.car` file directly into the Talend Studio workspace, or install it via the Component Manager.
-5. The `tDremioInput` component will now be available in your Palette!
+1. Navigate to `target/` and locate `dremio-talend-connector-1.0.0-SNAPSHOT.car`.
+2. Open Talend Studio.
+3. Drag and drop the `.car` file into the Talend Studio workspace, or install via the Component Manager.
+4. All three components (`tDremioInput`, `tDremioOutput`, `tDremioExecuteSQL`) appear in the **Dremio** family in your Palette.
 
 ## Configuration
 
-### Dremio Connection (DataStore)
+### Dremio Connection (DataStore) — shared by all three components
 
-Configure your connection parameters in the Talend metadata or directly on the component:
+| Field | Description | Default |
+|---|---|---|
+| Host | Dremio coordinator host | `localhost` |
+| Port | Arrow Flight port | `32010` |
+| Enable SSL/TLS | Required for Dremio Cloud | `false` |
+| Username | Leave blank when using a PAT | — |
+| Personal Access Token | PAT or password | — |
 
-- **Host**: Dremio Coordinator Host (e.g., `localhost`, `dremio.company.com`, `data.dremio.cloud`).
-- **Port**: Arrow Flight Port (Default is `32010` for OSS/Software, `443` for Cloud).
-- **Enable SSL/TLS**: **Must be checked** if connecting to Dremio Cloud or a secure enterprise deployment.
-- **Username**: Only required for older OSS versions; leave blank if using a PAT.
-- **Personal Access Token**: Your secure Dremio PAT.
+### tDremioInput
 
-### Query Execution (DataSet)
+| Field | Description |
+|---|---|
+| SQL Query | Any Dremio SQL query |
 
-Provide the SQL query to execute:
+### tDremioOutput
 
-- **SQL Query**: Standard Dremio SQL (e.g., `SELECT * FROM "Samples"."samples.dremio.com"."NYC-taxi-trips"`).
+| Field | Description | Default |
+|---|---|---|
+| Target Table Path | Fully-qualified table (e.g. `my_catalog.my_schema.my_table`) | — |
+| Write Mode | `APPEND` or `OVERWRITE` | `APPEND` |
+| Batch Size | Records per INSERT statement | `500` |
+| REST API Port | Dremio REST port (`9047` HTTP, `443` Cloud) | `9047` |
 
-## Supported Arrow Data Types
+### tDremioExecuteSQL
+
+| Field | Description | Default |
+|---|---|---|
+| SQL Statement | Any DDL or DML (CTAS, INSERT, DROP, etc.) | — |
+| REST API Port | Dremio REST port | `9047` |
+| Poll Interval (ms) | How often to check job status | `500` |
+| Timeout (seconds) | Max wait before timeout error | `300` |
+
+The `tDremioExecuteSQL` emitter produces one record per execution:
+
+| Field | Type | Description |
+|---|---|---|
+| `job_id` | String | Dremio job ID |
+| `job_state` | String | `COMPLETED`, `FAILED`, or `CANCELED` |
+| `sql_statement` | String | The SQL that was submitted |
+| `error_message` | String | Error detail if the job failed |
+
+## Supported Arrow Data Types (tDremioInput)
 
 | Arrow Vector | Talend Type | Notes |
 |---|---|---|
@@ -77,15 +120,23 @@ Provide the SQL query to execute:
 
 ## Compatibility Notes
 
-- **Java 8**: This connector is compiled targeting Java 8 for maximum Talend Studio compatibility. Arrow Flight 11.0.0 is used as the most recent version that is stable under a Java 8 runtime. If your Talend environment runs Java 11+, you may upgrade the `arrow.version` in `pom.xml` for additional features.
+- **Java 8**: Compiled targeting Java 8 for maximum Talend Studio compatibility. Arrow Flight 11.0.0 is the most recent version stable on Java 8. If your Talend environment runs Java 11+, you may upgrade `arrow.version` in `pom.xml`.
+- **REST API port**: `tDremioOutput` and `tDremioExecuteSQL` use the Dremio REST API (default port `9047`), not the Arrow Flight port (`32010`). Set `restPort` to `443` for Dremio Cloud.
 
 ## Programmatic Testing
 
-You can run the end-to-end integration test locally without Talend Studio. The TCK test harness will execute the pipeline, perform the secure Arrow Flight handshake, and validate the extraction mapping.
-
 ```bash
-# Run the integration test suite
 ./mvnw test
 ```
 
-*Note: The `DremioCloudTest` uses a dummy PAT and is expected to safely fail at the authentication step. You can edit the test locally to inject your real PAT if you wish to see live data extraction.*
+Tests use environment variables with safe defaults so they pass without a live Dremio instance:
+
+| Variable | Used by | Default |
+|---|---|---|
+| `DREMIO_HOST` | all | `localhost` |
+| `DREMIO_PORT` | tDremioInput | `32010` |
+| `DREMIO_USER` | tDremioInput | `dremio` |
+| `DREMIO_PAT` | all | `dremio123` |
+| `DREMIO_REST_PORT` | tDremioOutput, tDremioExecuteSQL | `9047` |
+| `DREMIO_TABLE` | tDremioOutput | `my_catalog.my_schema.test_output` |
+| `DREMIO_SQL` | tDremioExecuteSQL | `SELECT 1` |
