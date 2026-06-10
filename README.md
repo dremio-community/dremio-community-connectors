@@ -38,6 +38,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [HubSpot](hubspot/) | HubSpot CRM (REST API) | Private app access token | ✅ Working |
 | [Google Cloud Spanner](spanner/) | Cloud Spanner (REST API) | Service account JSON / emulator | ✅ Working |
 | [ServiceNow](servicenow/) | ServiceNow Table API (REST) | Basic auth (username/password) | ✅ Working |
+| [PagerDuty](pagerduty/) | PagerDuty REST API v2 | API token (account-level or user-level) | ✅ 21/21 tests passing |
 | [Talend Studio](talend/) | Dremio (Arrow Flight RPC + REST API) | Personal Access Token / username | ✅ 4/4 tests passing |
 
 ---
@@ -129,6 +130,10 @@ cd prometheus
 
 # ServiceNow
 cd servicenow
+./install.sh --docker try-dremio --prebuilt
+
+# PagerDuty
+cd pagerduty
 ./install.sh --docker try-dremio --prebuilt
 
 # Talend Studio connector (builds a .car file for Talend Studio, not a Dremio JAR)
@@ -758,6 +763,44 @@ WHERE i.state = 1;
 
 ---
 
+### [PagerDuty](pagerduty/)
+
+Native connector that queries PagerDuty operational data as SQL tables using the PagerDuty REST API v2. No JDBC driver required — uses Java 11's built-in `HttpClient` with API token auth. Exposes 4 tables — incidents, services, users, and oncalls — with offset-based pagination and nested JSON field extraction. Supports both US and EU region accounts.
+
+```bash
+./install.sh --docker try-dremio --prebuilt
+```
+
+```sql
+-- Who is currently on-call?
+SELECT user_name, escalation_policy_name, escalation_level, start, "end"
+FROM pagerduty.oncalls
+WHERE CURRENT_TIMESTAMP BETWEEN start AND "end"
+ORDER BY escalation_level ASC;
+
+-- Open incidents by urgency
+SELECT urgency, COUNT(*) AS cnt
+FROM pagerduty.incidents
+WHERE status != 'resolved'
+GROUP BY urgency ORDER BY cnt DESC;
+
+-- Join incidents to services
+SELECT i.incident_number, i.title, s.name AS service_name, i.urgency
+FROM pagerduty.incidents i
+JOIN pagerduty.services s ON i.service_id = s.id
+WHERE i.status != 'resolved';
+
+-- Cross-source: correlate PagerDuty incidents with Prometheus alerts
+SELECT i.title, i.urgency, a.alert_name, a.labels
+FROM pagerduty.incidents i
+JOIN prometheus_source.alerts a ON a.alert_name LIKE CONCAT('%', i.service_name, '%')
+WHERE i.status = 'triggered';
+```
+
+**Key features:** 4 tables · offset pagination · nested field extraction (`assignments[0].assignee.id`, `teams[*].id`) · EU region support · account-level and user-level token auth · 21/21 smoke tests · no JDBC driver
+
+---
+
 ### [Talend Studio](talend/)
 
 Native Talend Studio connector for **full ELT with Dremio**. Unlike the other connectors in this repo (which are Dremio storage plugins), this is a Talend Component Archive (`.car`) that installs into Talend Studio and adds three components to your palette.
@@ -837,6 +880,7 @@ dremio-community-connectors/
 ├── jira/            — Jira Cloud connector (REST API v3, 10 tables)
 ├── prometheus/      — Prometheus connector (HTTP API v1, 6 tables)
 ├── servicenow/      — ServiceNow connector (REST Table API, Basic auth)
+├── pagerduty/       — PagerDuty connector (REST API v2, 4 tables)
 ├── talend/          — Talend Studio connector (Arrow Flight RPC, .car component)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
