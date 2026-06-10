@@ -1,0 +1,52 @@
+{
+  "sourceType": "PAGERDUTY_REST",
+  "metadataRefresh": {
+    "isFileSystemSource": false,
+    "isHiveSource": false
+  },
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "title": "Authentication",
+        "elements": [
+          {
+            "type": "credentials",
+            "propName": "config.apiToken",
+            "label": "API Token",
+            "tooltip": "Your PagerDuty REST API Token (v2)",
+            "size": "full"
+          },
+          {
+            "type": "boolean",
+            "propName": "config.euRegion",
+            "label": "EU Account Region",
+            "tooltip": "Check if your PagerDuty account is in the EU region (uses api.eu.pagerduty.com)",
+            "size": "full"
+          }
+        ]
+      },
+      {
+        "name": "Options",
+        "title": "Advanced Options",
+        "elements": [
+          {
+            "type": "number",
+            "propName": "config.pageSize",
+            "label": "Page Size",
+            "placeholder": "100",
+            "tooltip": "Records per API page (max 100)",
+            "size": "half"
+          },
+          {
+            "type": "number",
+            "propName": "config.queryTimeoutSeconds",
+            "label": "Query Timeout (seconds)",
+            "placeholder": "120",
+            "size": "half"
+          }
+        ]
+      }
+    ]
+  }
+}
