@@ -1,0 +1,69 @@
+{
+  "form": {
+    "sections": [
+      {
+        "name": "Authentication",
+        "elements": [
+          {
+            "propName": "developerToken",
+            "label": "Developer Token",
+            "placeholder": "Your Google Ads developer token",
+            "errMsg": "Developer token is required",
+            "secure": true,
+            "tooltip": "The developer token from your Google Ads manager account (API Center)"
+          },
+          {
+            "propName": "clientId",
+            "label": "OAuth2 Client ID",
+            "placeholder": "123456789-abc.apps.googleusercontent.com",
+            "errMsg": "OAuth2 client ID is required"
+          },
+          {
+            "propName": "clientSecret",
+            "label": "OAuth2 Client Secret",
+            "placeholder": "GOCSPX-...",
+            "secure": true,
+            "errMsg": "OAuth2 client secret is required"
+          },
+          {
+            "propName": "refreshToken",
+            "label": "OAuth2 Refresh Token",
+            "placeholder": "1//0g...",
+            "secure": true,
+            "errMsg": "OAuth2 refresh token is required",
+            "tooltip": "Obtain via OAuth2 consent flow or google-auth-oauthlib"
+          }
+        ]
+      },
+      {
+        "name": "Account",
+        "elements": [
+          {
+            "propName": "customerId",
+            "label": "Customer ID",
+            "placeholder": "1234567890",
+            "errMsg": "Customer ID is required",
+            "tooltip": "Your Google Ads account ID (without dashes)"
+          },
+          {
+            "propName": "loginCustomerId",
+            "label": "Manager Account ID (optional)",
+            "placeholder": "9876543210",
+            "tooltip": "MCC / manager account ID if accessing sub-accounts"
+          }
+        ]
+      },
+      {
+        "name": "Query Settings",
+        "elements": [
+          {
+            "propName": "dateRangeDays",
+            "label": "Performance Report Date Range (days)",
+            "placeholder": "30",
+            "tooltip": "How many days back to pull for performance reports (campaign_performance, ad_group_performance, etc.)"
+          }
+        ]
+      }
+    ]
+  }
+}

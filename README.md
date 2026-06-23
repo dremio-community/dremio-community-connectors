@@ -41,6 +41,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [PagerDuty](pagerduty/) | PagerDuty REST API v2 | API token (account-level or user-level) | ✅ 21/21 tests passing |
 | [Talend Studio](talend/) | Dremio (Arrow Flight RPC + REST API) | Personal Access Token / username | ✅ 4/4 tests passing |
 | [Google Cloud Pub/Sub](pubsub/) | Pub/Sub subscriptions (REST API) | Service account JSON / ADC / emulator | ✅ 7/7 tests passing |
+| [Google Ads](googleads/) | Google Ads REST API v18 (9 tables) | OAuth2 refresh token + developer token | ✅ 10/10 tests passing |
 
 ---
 
@@ -144,6 +145,10 @@ cd talend
 
 # Google Cloud Pub/Sub
 cd pubsub
+./install.sh --docker try-dremio --prebuilt
+
+# Google Ads
+cd googleads
 ./install.sh --docker try-dremio --prebuilt
 ```
 
@@ -843,6 +848,52 @@ JOIN jira_source.issues j ON j.labels LIKE CONCAT('%', e.event_type, '%');
 
 ---
 
+### [Google Ads](googleads/)
+
+Native connector that queries Google Ads campaign data as SQL tables using the Google Ads REST API v18 and GAQL. OAuth2 refresh token authentication — no SDK or JDBC driver required. Exposes 9 tables covering campaigns, ad groups, ads, keywords, and 5 performance report tables with configurable date ranges. Performance values (cost, bids) are returned in micros as `BIGINT` — divide by 1,000,000 to get currency units.
+
+```bash
+./add-googleads-source.sh \
+  --developer-token YOUR_DEVELOPER_TOKEN \
+  --client-id YOUR_CLIENT_ID \
+  --client-secret YOUR_CLIENT_SECRET \
+  --refresh-token YOUR_REFRESH_TOKEN \
+  --customer-id 1234567890
+```
+
+```sql
+-- Campaign spend over the last 30 days
+SELECT campaign_name, SUM(cost_micros) / 1000000.0 AS spend_usd,
+       SUM(clicks) AS clicks, SUM(impressions) AS impressions
+FROM googleads.campaign_performance
+GROUP BY campaign_name ORDER BY spend_usd DESC;
+
+-- Active keywords with quality score
+SELECT keyword_text, match_type, quality_score,
+       cpc_bid_micros / 1000000.0 AS max_cpc_usd
+FROM googleads.keywords
+WHERE status = 'ENABLED'
+ORDER BY quality_score DESC;
+
+-- Search terms driving conversions
+SELECT search_term, clicks, conversions, cost_micros / 1000000.0 AS cost
+FROM googleads.search_terms
+WHERE conversions > 0
+ORDER BY conversions DESC;
+
+-- Cross-source: join Google Ads campaigns with Salesforce opportunities
+SELECT c.campaign_name, c.impressions, s.Amount AS deal_value
+FROM googleads.campaign_performance c
+JOIN salesforce.Opportunity s ON s.Campaign_Name__c = c.campaign_name
+WHERE s.StageName = 'Closed Won';
+```
+
+> **Note:** `cost_micros`, `cpc_bid_micros`, and `budget_amount_micros` are in millionths of a currency unit (e.g. 1,000,000 micros = $1.00 USD). Date range for performance tables is controlled by the `dateRangeDays` config (default: 30 days).
+
+**Key features:** 9 tables (4 entity + 5 performance) · GAQL query templates · configurable date range · OAuth2 token refresh (no SDK) · optional MCC/manager account (`loginCustomerId`) · both string-encoded and numeric JSON values handled · no JDBC driver · 10/10 unit tests
+
+---
+
 ### [Talend Studio](talend/)
 
 Native Talend Studio connector for **full ELT with Dremio**. Unlike the other connectors in this repo (which are Dremio storage plugins), this is a Talend Component Archive (`.car`) that installs into Talend Studio and adds three components to your palette.
@@ -924,6 +975,7 @@ dremio-community-connectors/
 ├── servicenow/      — ServiceNow connector (REST Table API, Basic auth)
 ├── pagerduty/       — PagerDuty connector (REST API v2, 4 tables)
 ├── pubsub/          — Google Cloud Pub/Sub connector (REST API, pull-without-ack)
+├── googleads/       — Google Ads connector (REST API v18, GAQL, 9 tables)
 ├── talend/          — Talend Studio connector (Arrow Flight RPC, .car component)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
