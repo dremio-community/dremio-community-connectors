@@ -1,0 +1,84 @@
+{
+  "sourceType": "GOOGLE_PUBSUB",
+  "metaIconClass": "pubsub-sprite",
+  "form": {
+    "tabs": [
+      {
+        "name": "General",
+        "isDefault": true,
+        "sections": [
+          {
+            "name": "Connection",
+            "elements": [
+              {
+                "propName": "projectId",
+                "size": "half"
+              },
+              {
+                "propName": "credentialsFile",
+                "size": "half"
+              },
+              {
+                "propName": "emulatorHost",
+                "size": "half"
+              }
+            ]
+          },
+          {
+            "name": "Schema",
+            "elements": [
+              {
+                "propName": "schemaMode",
+                "size": "half"
+              },
+              {
+                "propName": "sampleMessagesForSchema",
+                "size": "half"
+              }
+            ]
+          },
+          {
+            "name": "Scan",
+            "elements": [
+              {
+                "propName": "defaultMaxMessages",
+                "size": "half"
+              },
+              {
+                "propName": "pullTimeoutSeconds",
+                "size": "half"
+              }
+            ]
+          },
+          {
+            "name": "Subscription Filtering",
+            "elements": [
+              {
+                "propName": "subscriptionIncludePattern",
+                "size": "half"
+              },
+              {
+                "propName": "subscriptionExcludePattern",
+                "size": "half"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Advanced",
+        "sections": [
+          {
+            "name": "Performance",
+            "elements": [
+              {
+                "propName": "metadataCacheTtlSeconds",
+                "size": "half"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

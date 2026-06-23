@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  pubsub-emulator:
+    image: messagebird/gcloud-pubsub-emulator
+    container_name: pubsub-emulator
+    ports:
+      - "8085:8681"
+    environment:
+      - PUBSUB_PROJECT1=test-project,orders:orders-dremio,events:events-dremio
+
+  pubsub-seed:
+    image: google/cloud-sdk:slim
+    container_name: pubsub-seed
+    depends_on:
+      - pubsub-emulator
+    environment:
+      - PUBSUB_EMULATOR_HOST=pubsub-emulator:8681
+    entrypoint: |
+      bash -c "
+        sleep 3
+        # Publish sample JSON messages to the orders subscription
+        for i in 1 2 3 4 5; do
+          gcloud pubsub topics publish orders \\
+            --project=test-project \\
+            --message='{\"order_id\":'$$i',\"customer\":\"Customer_'$$i'\",\"amount\":'$$((i * 10 + 99))'.99,\"status\":\"pending\"}' \\
+            2>/dev/null || true
+        done
+        for i in 1 2 3; do
+          gcloud pubsub topics publish events \\
+            --project=test-project \\
+            --message='{\"event_type\":\"click\",\"user_id\":'$$i',\"page\":\"/home\",\"ts\":1700000000}' \\
+            2>/dev/null || true
+        done
+        echo 'Pub/Sub emulator seeded with sample messages.'
+      "

@@ -40,6 +40,7 @@ Each connector is a self-contained Dremio storage plugin that installs as a JAR 
 | [ServiceNow](servicenow/) | ServiceNow Table API (REST) | Basic auth (username/password) | ✅ Working |
 | [PagerDuty](pagerduty/) | PagerDuty REST API v2 | API token (account-level or user-level) | ✅ 21/21 tests passing |
 | [Talend Studio](talend/) | Dremio (Arrow Flight RPC + REST API) | Personal Access Token / username | ✅ 4/4 tests passing |
+| [Google Cloud Pub/Sub](pubsub/) | Pub/Sub subscriptions (REST API) | Service account JSON / ADC / emulator | ✅ 7/7 tests passing |
 
 ---
 
@@ -140,6 +141,10 @@ cd pagerduty
 cd talend
 ./build.sh
 # Then drag-and-drop the .car from target/ into Talend Studio
+
+# Google Cloud Pub/Sub
+cd pubsub
+./install.sh --docker try-dremio --prebuilt
 ```
 
 After installing, restart Dremio. The new source type will appear under **Sources → +**.
@@ -801,6 +806,43 @@ WHERE i.status = 'triggered';
 
 ---
 
+### [Google Cloud Pub/Sub](pubsub/)
+
+Native connector that exposes Google Cloud Pub/Sub subscriptions as queryable SQL tables in Dremio. Uses **pull-without-ack** semantics: messages are pulled, returned as rows, then immediately NACKed so they stay in the subscription — every query sees the current backlog without consuming it. No gRPC required; uses the Pub/Sub REST API with `google-auth-library-oauth2-http` for credential management (ADC or service account JSON key).
+
+```bash
+cd pubsub
+./install.sh --docker try-dremio --prebuilt
+# Then register the source:
+./add-pubsub-source.sh --name pubsub_prod --project my-gcp-project
+```
+
+```sql
+-- Query inferred JSON fields directly
+SELECT _message_id, _publish_time, order_id, customer, amount, status
+FROM pubsub_source."orders-dremio"
+LIMIT 100;
+
+-- Filter by publish time (client-side after pull)
+SELECT *
+FROM pubsub_source."orders-dremio"
+WHERE _publish_time > 1700000000000;
+
+-- Aggregate over the current message backlog
+SELECT status, COUNT(*) AS cnt, SUM(amount) AS total
+FROM pubsub_source."orders-dremio"
+GROUP BY status;
+
+-- Cross-source: join Pub/Sub events with Jira issues
+SELECT e.event_type, e.user_id, j.key, j.summary
+FROM pubsub_source."events-dremio" e
+JOIN jira_source.issues j ON j.labels LIKE CONCAT('%', e.event_type, '%');
+```
+
+**Key features:** pull-without-ack (non-destructive queries) · automatic JSON schema inference by sampling · 6 metadata columns (`_subscription`, `_message_id`, `_publish_time`, `_ordering_key`, `_attributes`, `_value_raw`) + inferred JSON payload fields · Service account JSON / ADC / Workload Identity auth · local emulator support (`messagebird/gcloud-pubsub-emulator`) · schema caching with configurable TTL · subscription include/exclude regex filters · 7/7 tests passing
+
+---
+
 ### [Talend Studio](talend/)
 
 Native Talend Studio connector for **full ELT with Dremio**. Unlike the other connectors in this repo (which are Dremio storage plugins), this is a Talend Component Archive (`.car`) that installs into Talend Studio and adds three components to your palette.
@@ -881,6 +923,7 @@ dremio-community-connectors/
 ├── prometheus/      — Prometheus connector (HTTP API v1, 6 tables)
 ├── servicenow/      — ServiceNow connector (REST Table API, Basic auth)
 ├── pagerduty/       — PagerDuty connector (REST API v2, 4 tables)
+├── pubsub/          — Google Cloud Pub/Sub connector (REST API, pull-without-ack)
 ├── talend/          — Talend Studio connector (Arrow Flight RPC, .car component)
 └── .github/
     ├── workflows/   — Per-connector CI (builds on every push/PR)
